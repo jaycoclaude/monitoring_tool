@@ -1,0 +1,81 @@
+[
+    {
+        "id": 1,
+        "title": "Design Homepage",
+        "description": "Create Apple-inspired homepage with modern UI components",
+        "from": "Alice Admin",
+        "to": "Bob Developer",
+        "status": "completed",
+        "dueDate": "2025-11-30",
+        "createdAt": "2025-10-25",
+        "attachments": [
+            "design-brief.pdf"
+        ],
+        "priority": "high"
+    },
+    {
+        "id": 2,
+        "title": "Prepare Weekly Report",
+        "description": "Weekly status report for management",
+        "from": "Bob Developer",
+        "to": "Alice Admin",
+        "status": "in-progress",
+        "dueDate": "2025-11-05",
+        "createdAt": "2025-10-28",
+        "attachments": [
+            "template.docx"
+        ],
+        "priority": "medium"
+    },
+    {
+        "id": 3,
+        "title": "Database Optimization",
+        "description": "Optimize database queries and indexes",
+        "from": "Charlie Manager",
+        "to": "Bob Developer",
+        "status": "completed",
+        "dueDate": "2025-10-20",
+        "createdAt": "2025-10-15",
+        "attachments": [
+            "performance-report.pdf",
+            "queries.sql"
+        ],
+        "priority": "high"
+    },
+    {
+        "id": 4,
+        "title": "Client Presentation",
+        "description": "Prepare slides and demo for client meeting",
+        "from": "Alice Admin",
+        "to": "Charlie Manager",
+        "status": "pending",
+        "dueDate": "2025-12-10",
+        "createdAt": "2025-10-29",
+        "attachments": [],
+        "priority": "medium"
+    },
+    {
+        "title": "ertyuio",
+        "description": "xgchjk",
+        "from": "Alice Admin",
+        "to": "Bob Developer",
+        "status": "in-progress",
+        "dueDate": "2025-10-02",
+        "createdAt": "2025-10-27",
+        "attachments": [],
+        "priority": "high",
+        "id": 5
+    },
+    {
+        "title": "this is for Testing",
+        "description": "Testing if it inserts",
+        "from": "Alice Admin",
+        "to": "David Designer",
+        "status": "pending",
+        "dueDate": "2025-10-27",
+        "createdAt": "2025-10-27",
+        "attachments": [],
+        "priority": "high",
+        "id": 6
+    }
+]
