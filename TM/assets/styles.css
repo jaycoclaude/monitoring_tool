@@ -14,7 +14,7 @@ body {
 .footer { margin-top:auto; padding:20px; background:#0f5e8a; color:#fff; text-align:center; font-size:0.875rem; font-weight:500; }
 
 /* HEADER */
-.header { position:sticky; top:0; z-index:1000; background:rgba(255,255,255,0.92); backdrop-filter:blur(12px); border-bottom:1px solid rgba(0,0,0,0.08); box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+.header { position:sticky; top:0; z-index:1000; background:rgba(255,255,255,0.92);  border-bottom:1px solid rgba(0,0,0,0.08); box-shadow:0 1px 3px rgba(0,0,0,0.05); }
 .header-content { max-width:1240px; margin:0 auto; padding:0 20px; display:flex; align-items:center; justify-content:space-between; height:60px; }
 .branding { display:flex; align-items:center; gap:12px; }
 .logo { width:36px;height:36px;border-radius:10px;background:#0f5e8a;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px;letter-spacing:-0.5px; }
@@ -348,3 +348,4 @@ small { color:#6e6e73; font-size:13px; margin-top:4px; display:block; }
 @media (max-width: 640px) {
     .cards-grid { grid-template-columns: 1fr; gap: 16px; }
 }
+

@@ -1,6 +1,6 @@
 <?php
 require_once 'data.php';
-$currentUser = getCurrentUser();
+$staff_email = $_SESSION['user_email'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -29,7 +29,7 @@ $currentUser = getCurrentUser();
       </button>
       <div class="user-profile">
         <div class="user-avatar"><i class="fas fa-user"></i></div>
-        <div class="user-name"><?php echo htmlspecialchars($currentUser); ?></div>
+        <div class="user-name"><?php echo $staff_email; ?></div>
       </div>
     </div>
   </div>

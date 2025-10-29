@@ -1,123 +1,143 @@
 <?php
-require_once 'config.php';
+// data.php
+require_once '../includes/config.php';
+require_once '../includes/auth.php';
+$current_staff = $_SESSION['user_id'];
 
-
-function getTasks() {
-    $conn = getDB();
-    $result = $conn->query("SELECT * FROM tasks ORDER BY id DESC");
-    
-    $tasks = [];
-    while ($row = $result->fetch_assoc()) {
-        // Decode attachments JSON string to array
-        $row['attachments'] = json_decode($row['attachments'], true) ?: [];
-        $tasks[] = $row;
-    }
-    
-    return $tasks;
+if (!$current_staff) {
+    // Not logged in or invalid session
+    header('Location: ../index.php');
+    exit();
+}
+function getDB() {
+    global $pdo;
+    return $pdo;
 }
 
+
+function getTasks(int $current_staff): array {
+    $db = getDB();
+
+    $sql = "
+        SELECT t.*,
+               s1.staff_names AS assigned_by_name,
+               s2.staff_names AS assigned_to_name
+        FROM tbl_tasks t
+        JOIN tbl_staff s1 ON t.assigned_by = s1.staff_id
+        JOIN tbl_staff s2 ON t.assigned_to = s2.staff_id
+        WHERE t.is_deleted = 0
+    ";
+
+    $params = [];
+
+    $sql .= " ORDER BY t.created_at DESC";
+
+    try {
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($tasks as &$task) {
+            $task['attachments'] = $task['attachments']
+                ? json_decode($task['attachments'], true)
+                : [];
+        }
+        return $tasks;
+    } catch (PDOException $e) {
+        error_log('getTasks error: ' . $e->getMessage());
+        return [];
+    }
+}
 function getTaskById($id) {
-    $conn = getDB();
-    $stmt = $conn->prepare("SELECT * FROM tasks WHERE id = ?");
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    if ($row = $result->fetch_assoc()) {
-        // Decode attachments JSON string to array
-        $row['attachments'] = json_decode($row['attachments'], true) ?: [];
-        return $row;
+    $pdo = getDB();
+    $stmt = $pdo->prepare("SELECT t.*, 
+                                  s1.staff_names AS assigned_by_name,
+                                  s2.staff_names AS assigned_to_name
+                           FROM tbl_tasks t
+                           JOIN tbl_staff s1 ON t.assigned_by = s1.staff_id
+                           JOIN tbl_staff s2 ON t.assigned_to = s2.staff_id
+                           WHERE t.task_id = ? AND t.is_deleted = 0");
+    $stmt->execute([$id]);
+    $task = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($task) {
+        $task['attachments'] = $task['attachments'] ? json_decode($task['attachments'], true) : [];
     }
-    
-    return null;
+    return $task;
 }
 
-function addTask($task) {
-    $conn = getDB();
-    
-    // Encode attachments array to JSON string
-    $attachments = json_encode($task['attachments'] ?? []);
-    
-    $stmt = $conn->prepare("INSERT INTO tasks (title, description, `from`, `to`, status, dueDate, createdAt, attachments, priority) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("sssssssss", 
-        $task['title'], 
-        $task['description'], 
-        $task['from'], 
-        $task['to'], 
-        $task['status'], 
-        $task['dueDate'], 
-        $task['createdAt'], 
-        $attachments, 
-        $task['priority']
-    );
-    
-    if ($stmt->execute()) {
-        $task['id'] = $conn->insert_id;
-        return $task;
-    }
-    
-    return null;
+function addTask($data) {
+    $pdo = getDB();
+    $attachments = json_encode($data['attachments'] ?? []);
+
+    $stmt = $pdo->prepare("INSERT INTO tbl_tasks 
+        (title, description, assigned_by, assigned_to, status, priority, due_date, attachments, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+
+    $stmt->execute([
+        $data['title'],
+        $data['description'],
+        $data['assigned_by'],
+        $data['assigned_to'],
+        $data['status'] ?? 'pending',
+        $data['priority'] ?? 'medium',
+        $data['due_date'],
+        $attachments
+    ]);
+
+    return $pdo->lastInsertId();
 }
 
-function updateTaskStatus($id, $status) {
-    $conn = getDB();
-    $stmt = $conn->prepare("UPDATE tasks SET status = ? WHERE id = ?");
-    $stmt->bind_param("si", $status, $id);
-    $stmt->execute();
+function updateTaskStatus($task_id, $status, $staff_id) {
+    $pdo = getDB();
+    $pdo->beginTransaction();
+
+    // Update task
+    $stmt = $pdo->prepare("UPDATE tbl_tasks SET status = ?, updated_at = NOW() WHERE task_id = ?");
+    $stmt->execute([$status, $task_id]);
+
+    // Log update
+    $stmt = $pdo->prepare("INSERT INTO tbl_task_updates (task_id, staff_id, status_change, created_at) 
+                           VALUES (?, ?, ?, NOW())");
+    $stmt->execute([$task_id, $staff_id, $status]);
+
+    $pdo->commit();
 }
 
-function updateTask($id, $task) {
-    $conn = getDB();
-    
-    // Encode attachments array to JSON string
-    $attachments = json_encode($task['attachments'] ?? []);
-    
-    $stmt = $conn->prepare("UPDATE tasks SET title = ?, description = ?, `from` = ?, `to` = ?, status = ?, dueDate = ?, createdAt = ?, attachments = ?, priority = ? WHERE id = ?");
-    $stmt->bind_param("sssssssssi", 
-        $task['title'], 
-        $task['description'], 
-        $task['from'], 
-        $task['to'], 
-        $task['status'], 
-        $task['dueDate'], 
-        $task['createdAt'], 
-        $attachments, 
-        $task['priority'],
-        $id
-    );
-    
-    return $stmt->execute();
+function getTaskUpdates($task_id) {
+    $pdo = getDB();
+    $stmt = $pdo->prepare("
+        SELECT tu.*, u.user_email 
+        FROM tbl_task_updates tu
+        JOIN tbl_hm_users u ON tu.staff_id = u.user_id
+        WHERE tu.task_id = ?
+        ORDER BY tu.created_at DESC
+    ");
+    $stmt->execute([$task_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function deleteTask($id) {
-    $conn = getDB();
-    $stmt = $conn->prepare("DELETE FROM tasks WHERE id = ?");
-    $stmt->bind_param("i", $id);
-    return $stmt->execute();
+
+function getAllStaff() {
+    $pdo = getDB();
+    $stmt = $pdo->query("SELECT staff_id, staff_names, staff_email FROM tbl_staff WHERE staff_status = 1 ORDER BY staff_names");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 function formatDate($date) {
-    return date('M d, Y', strtotime($date));
+    return $date ? date('M d, Y', strtotime($date)) : '—';
 }
 
 function getStatusClass($status) {
-    return $status === 'pending' ? 'pending' : ($status === 'in-progress' ? 'in-progress' : 'completed');
+    return match ($status) {
+        'pending' => 'pending',
+        'in_progress' => 'in-progress',
+        'completed' => 'completed',
+        'overdue' => 'overdue',
+        default => 'pending',
+    };
 }
 
 function getPriorityBadge($priority) {
-    return $priority === 'high' ? 'High' : ($priority === 'medium' ? 'Medium' : 'Low');
+    $labels = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent'];
+    return $labels[$priority] ?? 'Medium';
 }
-
-function searchTasks($searchTerm, $tasks) {
-    if (empty($searchTerm)) return $tasks;
-    $st = strtolower($searchTerm);
-    return array_filter($tasks, function($t) use ($st) {
-        return stripos($t['title'], $st) !== false || stripos($t['description'], $st) !== false || stripos($t['from'], $st) !== false || stripos($t['to'], $st) !== false;
-    });
-}
-
-function getCurrentUser() {
-    return "Alice Admin";
-}
-?>
-

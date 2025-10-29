@@ -12,10 +12,10 @@ try {
     die("Connection failed: " . $e->getMessage());
 }
 ?>
-$host = 'localhost';
+<!-- $host = 'localhost';
 $db = 'newrwandafdagov_fdaweb';
 $user = 'newrwandafdagov';
 //$pass = 'hzNyh6,CRrI2';Rwandafda@2025#
 $pass = 'Rwandafda@2025#';
 $charset = 'utf8mb4';
-$datetoday = date("Y-m-d");
+$datetoday = date("Y-m-d"); -->

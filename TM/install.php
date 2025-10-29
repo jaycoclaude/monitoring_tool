@@ -1,6 +1,6 @@
 <?php
 // Installation script for Task System database
-require_once 'config.php';
+require_once '../includes/config.php';
 
 echo "<h2>Installing Task System Database</h2>";
 
