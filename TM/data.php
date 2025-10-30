@@ -2,6 +2,7 @@
 // data.php
 require_once '../includes/config.php';
 require_once '../includes/auth.php';
+require_once __DIR__ . '/../includes/logger.php';
 $current_staff = $_SESSION['user_id'];
 
 if (!$current_staff) {
@@ -15,70 +16,104 @@ function getDB() {
 }
 
 
+
+
 function getTasks(int $current_user_id): array {
     $db = getDB();
 
-    // First, get the staff_id for the current user
+    log_message("🔍 [getTasks] Starting for user_id={$current_user_id}", 'tasks');
+
+    // Step 1: Get current user's staff_id
     $stmt = $db->prepare("SELECT staff_id FROM tbl_staff WHERE user_id = :user_id AND staff_status = 1 LIMIT 1");
     $stmt->execute([':user_id' => $current_user_id]);
     $staff = $stmt->fetch(PDO::FETCH_ASSOC);
+    $current_staff_id = $staff['staff_id'] ?? null;
 
-    if (!$staff) {
-        // No staff record found for this user
+    if (!$current_staff_id) {
+        log_message("⚠️ [getTasks] No active staff record found for user_id={$current_user_id}", 'tasks');
         return [];
     }
 
-    $current_staff_id = $staff['staff_id'];
-
+    // Step 2: Fetch tasks created or assigned to the user
     $sql = "
-        SELECT t.*,
-               s1.staff_names AS assigned_by_name,
-               s2.staff_names AS assigned_to_name
+        SELECT 
+            t.*,
+            s1.staff_names AS assigned_by_name,
+            s2.staff_names AS assigned_to_name,
+            u1.user_email AS assigned_by_email,
+            s2.staff_email AS assigned_to_email
         FROM tbl_tasks t
-        JOIN tbl_staff s1 ON t.assigned_by = s1.staff_id
-        JOIN tbl_staff s2 ON t.assigned_to = s2.staff_id
+        LEFT JOIN tbl_hm_users u1 ON t.assigned_by = u1.user_id
+        LEFT JOIN tbl_staff s1 ON u1.user_id = s1.user_id
+        LEFT JOIN tbl_staff s2 ON t.assigned_to = s2.staff_id
         WHERE t.is_deleted = 0
-          AND (t.assigned_by = :staff_id OR t.assigned_to = :staff_id)
+          AND (t.assigned_by = :user_id OR t.assigned_to = :staff_id)
         ORDER BY t.created_at DESC
     ";
 
-    $params = [':staff_id' => $current_staff_id];
+    $params = [
+        ':user_id' => $current_user_id,
+        ':staff_id' => $current_staff_id
+    ];
+
+    log_message("📘 [getTasks] Executing SQL with params: " . json_encode($params), 'tasks');
 
     try {
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
         $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        log_message("📦 [getTasks] Retrieved " . count($tasks) . " tasks for user_id={$current_user_id}", 'tasks');
+
+        // Step 3: Process tasks
         foreach ($tasks as &$task) {
-            $task['attachments'] = $task['attachments']
-                ? json_decode($task['attachments'], true)
+            $task['assigned_by_name'] = $task['assigned_by_name'] ?? 'Unknown';
+            $task['assigned_to_name'] = $task['assigned_to_name'] ?? 'Unknown';
+            $task['assigned_by_email'] = $task['assigned_by_email'] ?? 'Unknown';
+            $task['assigned_to_email'] = $task['assigned_to_email'] ?? 'Unknown';
+            $task['attachments'] = !empty($task['attachments']) 
+                ? json_decode($task['attachments'], true) ?: [] 
                 : [];
         }
 
+        log_message("✅ [getTasks] Completed successfully for user_id={$current_user_id}", 'tasks');
         return $tasks;
+
     } catch (PDOException $e) {
-        error_log('getTasks error: ' . $e->getMessage());
+        log_message("❌ [getTasks] SQL Error: " . $e->getMessage(), 'tasks');
         return [];
     }
 }
+
+
+
+
+
+
+
 
 function getTaskById($id) {
     $pdo = getDB();
     $stmt = $pdo->prepare("SELECT t.*, 
                                   s1.staff_names AS assigned_by_name,
-                                  s2.staff_names AS assigned_to_name
+                                  s2.staff_names AS assigned_to_name,
+                                  u1.user_email AS assigned_by_email,
+                                  s2.staff_email AS assigned_to_email
                            FROM tbl_tasks t
-                           JOIN tbl_staff s1 ON t.assigned_by = s1.staff_id
-                           JOIN tbl_staff s2 ON t.assigned_to = s2.staff_id
+                           LEFT JOIN tbl_hm_users u1 ON t.assigned_by = u1.user_id
+                           LEFT JOIN tbl_staff s1 ON u1.user_id = s1.user_id
+                           LEFT JOIN tbl_staff s2 ON t.assigned_to = s2.staff_id
                            WHERE t.task_id = ? AND t.is_deleted = 0");
     $stmt->execute([$id]);
     $task = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($task) {
         $task['attachments'] = $task['attachments'] ? json_decode($task['attachments'], true) : [];
+        // Add fallbacks for missing data
+        $task['assigned_by_name'] = $task['assigned_by_name'] ?? 'Unknown';
+        $task['assigned_to_name'] = $task['assigned_to_name'] ?? 'Unknown';
     }
     return $task;
 }
-
 function addTask($data) {
     $pdo = getDB();
     $attachments = json_encode($data['attachments'] ?? []);

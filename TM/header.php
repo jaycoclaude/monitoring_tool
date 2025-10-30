@@ -17,7 +17,7 @@ $staff_email = $_SESSION['user_email'];
   <div class="header-content">
     <div class="branding">
       <div class="logo">T</div>
-      <div class="brand-text">
+      <div class="brand-text" a href="../landing_page.php">
         <h1>TaskFlow</h1>
         <p>Assignment Management</p>
       </div>

@@ -1,6 +1,7 @@
 <?php
 require_once '../includes/auth.php';
 require_once 'data.php';
+$current_staff = $_SESSION['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['status'])) {
     updateTaskStatus($_POST['id'], $_POST['status'], $current_staff);

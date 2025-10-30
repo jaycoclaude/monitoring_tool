@@ -55,7 +55,7 @@ if ($conn->query($sql)) {
 echo "<p>Inserting sample data...</p>";
 
 $sampleTasks = [
-    "('Design Homepage', 'Create Apple-inspired homepage with modern UI components', 'Alice Admin', 'Bob Developer', 'pending', '2025-11-30', '2025-10-25', '[\"design-brief.pdf\"]', 'high')",
+    "('Design Homepage', 'Create Elegant-inspired homepage with modern UI components', 'Alice Admin', 'Bob Developer', 'pending', '2025-11-30', '2025-10-25', '[\"design-brief.pdf\"]', 'high')",
     "('Prepare Weekly Report', 'Weekly status report for management', 'Bob Developer', 'Alice Admin', 'in-progress', '2025-11-05', '2025-10-28', '[\"template.docx\"]', 'medium')",
     "('Database Optimization', 'Optimize database queries and indexes', 'Charlie Manager', 'Bob Developer', 'completed', '2025-10-20', '2025-10-15', '[\"performance-report.pdf\", \"queries.sql\"]', 'high')",
     "('Client Presentation', 'Prepare slides and demo for client meeting', 'Alice Admin', 'Charlie Manager', 'pending', '2025-12-10', '2025-10-29', '[]', 'medium')"
