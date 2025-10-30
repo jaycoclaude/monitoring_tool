@@ -40,21 +40,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <?php require_once 'header.php'; ?>
 
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<!-- Select2 CSS -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+
+<style>
+    .form-container i,
+    .page-header i {
+        color: #003366; /* Dark blue for all icons */
+    }
+    .btn-submit i {
+        color: #ffffff; /* White icon on submit button */
+    }
+    .select2-container .select2-selection--single {
+        height: 38px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+    }
+    .select2-selection__rendered {
+        padding-left: 8px !important;
+    }
+</style>
+
 <div class="page-header">
-    <h1 class="page-title">Create Assignment</h1>
-    <a href="index.php" class="back-btn">Back</a>
+    <h1 class="page-title">
+        <i class="fa-solid fa-clipboard-list"></i> Create Assignment
+    </h1>
+    <a href="index.php" class="back-btn">
+        <i class="fa-solid fa-arrow-left"></i> Back
+    </a>
 </div>
 
 <div class="form-container">
     <form method="POST" enctype="multipart/form-data" class="form-grid">
         <div class="form-group">
-            <label>Title *</label>
-            <input type="text" name="title" required>
+            <label>
+                <i class="fa-solid fa-heading"></i> Title *
+            </label>
+            <input type="text" name="title" placeholder="Enter task title" required>
         </div>
 
         <div class="form-group">
-            <label>Assign To *</label>
-            <select name="assignee" required>
+            <label>
+                <i class="fa-solid fa-user-check"></i> Assign To *
+            </label>
+            <select name="assignee" class="select2" required>
                 <option value="">Select staff...</option>
                 <?php foreach ($staff_list as $s): ?>
                     <option value="<?= $s['staff_id'] ?>"><?= htmlspecialchars($s['staff_names']) ?></option>
@@ -63,18 +97,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="form-group">
-            <label>Due Date *</label>
+            <label>
+                <i class="fa-solid fa-calendar-day"></i> Due Date *
+            </label>
             <input type="date" name="due_date" required>
         </div>
 
         <div class="form-group full-width">
-            <label>Description *</label>
-            <textarea name="description" required rows="4"></textarea>
+            <label>
+                <i class="fa-solid fa-align-left"></i> Description *
+            </label>
+            <textarea name="description" placeholder="Describe the task..." required rows="4"></textarea>
         </div>
 
         <div class="form-group">
-            <label>Priority</label>
-            <select name="priority">
+            <label>
+                <i class="fa-solid fa-flag"></i> Priority
+            </label>
+            <select name="priority" class="select2">
                 <option value="low">Low</option>
                 <option value="medium" selected>Medium</option>
                 <option value="high">High</option>
@@ -83,15 +123,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="form-group full-width">
-            <label>Attachments</label>
+            <label>
+                <i class="fa-solid fa-paperclip"></i> Attachments
+            </label>
             <input type="file" name="attachments[]" multiple accept=".pdf,.doc,.docx,.jpg,.png,.zip">
-            <small>PDF, DOC, JPG, PNG, ZIP</small>
+            <small>
+                <i class="fa-solid fa-file"></i> Accepted: PDF, DOC, JPG, PNG, ZIP
+            </small>
         </div>
 
         <div class="form-group full-width" style="text-align:right;">
-            <button type="submit" class="btn-submit">Create Assignment</button>
+            <button type="submit" class="btn-submit">
+                <i class="fa-solid fa-plus-circle"></i> Create Assignment
+            </button>
         </div>
     </form>
 </div>
+
+<!-- Select2 JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        $('.select2').select2({
+            width: '100%',
+            placeholder: 'Select an option',
+            allowClear: true
+        });
+    });
+</script>
 
 <?php require_once 'footer.php'; ?>

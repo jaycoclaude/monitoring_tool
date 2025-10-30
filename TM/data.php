@@ -15,8 +15,20 @@ function getDB() {
 }
 
 
-function getTasks(int $current_staff): array {
+function getTasks(int $current_user_id): array {
     $db = getDB();
+
+    // First, get the staff_id for the current user
+    $stmt = $db->prepare("SELECT staff_id FROM tbl_staff WHERE user_id = :user_id AND staff_status = 1 LIMIT 1");
+    $stmt->execute([':user_id' => $current_user_id]);
+    $staff = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$staff) {
+        // No staff record found for this user
+        return [];
+    }
+
+    $current_staff_id = $staff['staff_id'];
 
     $sql = "
         SELECT t.*,
@@ -26,11 +38,11 @@ function getTasks(int $current_staff): array {
         JOIN tbl_staff s1 ON t.assigned_by = s1.staff_id
         JOIN tbl_staff s2 ON t.assigned_to = s2.staff_id
         WHERE t.is_deleted = 0
+          AND (t.assigned_by = :staff_id OR t.assigned_to = :staff_id)
+        ORDER BY t.created_at DESC
     ";
 
-    $params = [];
-
-    $sql .= " ORDER BY t.created_at DESC";
+    $params = [':staff_id' => $current_staff_id];
 
     try {
         $stmt = $db->prepare($sql);
@@ -42,12 +54,14 @@ function getTasks(int $current_staff): array {
                 ? json_decode($task['attachments'], true)
                 : [];
         }
+
         return $tasks;
     } catch (PDOException $e) {
         error_log('getTasks error: ' . $e->getMessage());
         return [];
     }
 }
+
 function getTaskById($id) {
     $pdo = getDB();
     $stmt = $pdo->prepare("SELECT t.*, 
