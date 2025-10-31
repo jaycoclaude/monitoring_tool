@@ -42,8 +42,8 @@ $updates = getTaskUpdates($task_id);
             <div class="detail-row"><span class="label" style="color:#0A3D62;"><i class="fa-solid fa-align-left" style="color:#0A3D62;"></i> Description:</span> <span class="value"><?= nl2br(htmlspecialchars($task['description'])) ?></span></div>
             <div class="detail-row"><span class="label" style="color:#0A3D62;"><i class="fa-solid fa-user" style="color:#0A3D62;"></i> From:</span> <span class="value"><?= htmlspecialchars($task['assigned_by_name']) ?></span></div>
             <div class="detail-row"><span class="label" style="color:#0A3D62;"><i class="fa-solid fa-user-check" style="color:#0A3D62;"></i> To:</span> <span class="value"><?= htmlspecialchars($task['assigned_to_name']) ?></span></div>
+            <div class="detail-row"><span class="label" style="color:#0A3D62;"><i class="fa-solid fa-calendar-plus" style="color:#0A3D62;"></i> Assigned Date:</span> <span class="value"><?= formatDate($task['created_at']) ?></span></div>
             <div class="detail-row"><span class="label" style="color:#0A3D62;"><i class="fa-solid fa-calendar-day" style="color:#0A3D62;"></i> Due Date:</span> <span class="value"><?= formatDate($task['due_date']) ?></span></div>
-            <div class="detail-row"><span class="label" style="color:#0A3D62;"><i class="fa-solid fa-calendar-plus" style="color:#0A3D62;"></i> Created:</span> <span class="value"><?= formatDate($task['created_at']) ?></span></div>
             <div class="detail-row"><span class="label" style="color:#0A3D62;"><i class="fa-solid fa-flag" style="color:#0A3D62;"></i> Priority:</span> 
                 <span class="value"><span class="badge badge-<?= $task['priority'] ?>"><?= ucfirst($task['priority']) ?></span></span>
             </div>

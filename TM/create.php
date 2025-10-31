@@ -152,6 +152,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             allowClear: true
         });
     });
+
+
 </script>
+<script>
+    $(document).ready(function() {
+        // Initialize select2
+        $('.select2').select2({
+            width: '100%',
+            placeholder: 'Select an option',
+            allowClear: true
+        });
+
+        // Prevent selecting past dates
+        const today = new Date().toISOString().split('T')[0];
+        document.querySelector('input[name="due_date"]').setAttribute('min', today);
+    });
+</script>
+
 
 <?php require_once 'footer.php'; ?>
