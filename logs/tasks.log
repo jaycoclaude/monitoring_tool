@@ -821,3 +821,47 @@
 [2025-10-31 16:56:41] 📘 [getTasks] Executing SQL with params: {":user_id":169,":staff_id":196}
 [2025-10-31 16:56:41] 📦 [getTasks] Retrieved 33 tasks for user_id=169
 [2025-10-31 16:56:41] ✅ [getTasks] Completed successfully for user_id=169
+[2025-11-02 23:55:11] 🔍 [getTasks] Starting for user_id=169
+[2025-11-02 23:55:11] 📘 [getTasks] Executing SQL with params: {":user_id":169,":staff_id":196}
+[2025-11-02 23:55:11] 📦 [getTasks] Retrieved 33 tasks for user_id=169
+[2025-11-02 23:55:11] ✅ [getTasks] Completed successfully for user_id=169
+[2025-11-02 23:55:43] 🔍 [getTasks] Starting for user_id=169
+[2025-11-02 23:55:43] 📘 [getTasks] Executing SQL with params: {":user_id":169,":staff_id":196}
+[2025-11-02 23:55:43] 📦 [getTasks] Retrieved 33 tasks for user_id=169
+[2025-11-02 23:55:43] ✅ [getTasks] Completed successfully for user_id=169
+[2025-11-02 23:57:33] 🔍 [getTasks] Starting for user_id=169
+[2025-11-02 23:57:33] 📘 [getTasks] Executing SQL with params: {":user_id":169,":staff_id":196}
+[2025-11-02 23:57:33] 📦 [getTasks] Retrieved 33 tasks for user_id=169
+[2025-11-02 23:57:33] ✅ [getTasks] Completed successfully for user_id=169
+[2025-11-02 23:57:58] 🔍 [getTasks] Starting for user_id=169
+[2025-11-02 23:57:58] 📘 [getTasks] Executing SQL with params: {":user_id":169,":staff_id":196}
+[2025-11-02 23:57:58] 📦 [getTasks] Retrieved 33 tasks for user_id=169
+[2025-11-02 23:57:58] ✅ [getTasks] Completed successfully for user_id=169
+[2025-11-02 23:59:49] 🔍 [getTasks] Starting for user_id=169
+[2025-11-02 23:59:49] 📘 [getTasks] Executing SQL with params: {":user_id":169,":staff_id":196}
+[2025-11-02 23:59:49] 📦 [getTasks] Retrieved 33 tasks for user_id=169
+[2025-11-02 23:59:49] ✅ [getTasks] Completed successfully for user_id=169
+[2025-11-03 00:00:33] 🔍 [getTasks] Starting for user_id=169
+[2025-11-03 00:00:33] 📘 [getTasks] Executing SQL with params: {":user_id":169,":staff_id":196}
+[2025-11-03 00:00:33] 📦 [getTasks] Retrieved 33 tasks for user_id=169
+[2025-11-03 00:00:33] ✅ [getTasks] Completed successfully for user_id=169
+[2025-11-03 00:00:50] 🔍 [getTasks] Starting for user_id=169
+[2025-11-03 00:00:50] 📘 [getTasks] Executing SQL with params: {":user_id":169,":staff_id":196}
+[2025-11-03 00:00:52] 📦 [getTasks] Retrieved 33 tasks for user_id=169
+[2025-11-03 00:00:52] ✅ [getTasks] Completed successfully for user_id=169
+[2025-11-03 00:03:41] 🔍 [getTasks] Starting for user_id=169
+[2025-11-03 00:03:41] 📘 [getTasks] Executing SQL with params: {":user_id":169,":staff_id":196}
+[2025-11-03 00:03:41] 📦 [getTasks] Retrieved 33 tasks for user_id=169
+[2025-11-03 00:03:41] ✅ [getTasks] Completed successfully for user_id=169
+[2025-11-03 00:18:19] 🔍 [getTasks] Starting for user_id=169
+[2025-11-03 00:18:19] 📘 [getTasks] Executing SQL with params: {":user_id":169,":staff_id":196}
+[2025-11-03 00:18:19] 📦 [getTasks] Retrieved 33 tasks for user_id=169
+[2025-11-03 00:18:19] ✅ [getTasks] Completed successfully for user_id=169
+[2025-11-03 00:49:30] 🔍 [getTasks] Starting for user_id=66
+[2025-11-03 00:49:30] 📘 [getTasks] Executing SQL with params: {":user_id":66,":staff_id":38}
+[2025-11-03 00:49:30] 📦 [getTasks] Retrieved 5 tasks for user_id=66
+[2025-11-03 00:49:30] ✅ [getTasks] Completed successfully for user_id=66
+[2025-11-03 00:49:38] 🔍 [getTasks] Starting for user_id=66
+[2025-11-03 00:49:38] 📘 [getTasks] Executing SQL with params: {":user_id":66,":staff_id":38}
+[2025-11-03 00:49:38] 📦 [getTasks] Retrieved 5 tasks for user_id=66
+[2025-11-03 00:49:38] ✅ [getTasks] Completed successfully for user_id=66

@@ -10,7 +10,8 @@ if (!$current_staff) {
     header('Location: ../index.php');
     exit();
 }
-function getDB() {
+function getDB()
+{
     global $pdo;
     return $pdo;
 }
@@ -18,7 +19,8 @@ function getDB() {
 
 
 
-function getTasks(int $current_user_id): array {
+function getTasks(int $current_user_id): array
+{
     $db = getDB();
 
     log_message("🔍 [getTasks] Starting for user_id={$current_user_id}", 'tasks');
@@ -71,14 +73,13 @@ function getTasks(int $current_user_id): array {
             $task['assigned_to_name'] = $task['assigned_to_name'] ?? 'Unknown';
             $task['assigned_by_email'] = $task['assigned_by_email'] ?? 'Unknown';
             $task['assigned_to_email'] = $task['assigned_to_email'] ?? 'Unknown';
-            $task['attachments'] = !empty($task['attachments']) 
-                ? json_decode($task['attachments'], true) ?: [] 
+            $task['attachments'] = !empty($task['attachments'])
+                ? json_decode($task['attachments'], true) ?: []
                 : [];
         }
 
         log_message("✅ [getTasks] Completed successfully for user_id={$current_user_id}", 'tasks');
         return $tasks;
-
     } catch (PDOException $e) {
         log_message("❌ [getTasks] SQL Error: " . $e->getMessage(), 'tasks');
         return [];
@@ -92,7 +93,8 @@ function getTasks(int $current_user_id): array {
 
 
 
-function getTaskById($id) {
+function getTaskById($id)
+{
     $pdo = getDB();
     $stmt = $pdo->prepare("SELECT t.*, 
                                   s1.staff_names AS assigned_by_name,
@@ -114,7 +116,8 @@ function getTaskById($id) {
     }
     return $task;
 }
-function addTask($data) {
+function addTask($data)
+{
     $pdo = getDB();
     $attachments = json_encode($data['attachments'] ?? []);
 
@@ -136,7 +139,8 @@ function addTask($data) {
     return $pdo->lastInsertId();
 }
 
-function updateTaskStatus($task_id, $status, $staff_id) {
+function updateTaskStatus($task_id, $status, $staff_id)
+{
     $pdo = getDB();
     $pdo->beginTransaction();
 
@@ -152,7 +156,8 @@ function updateTaskStatus($task_id, $status, $staff_id) {
     $pdo->commit();
 }
 
-function getTaskUpdates($task_id) {
+function getTaskUpdates($task_id)
+{
     $pdo = getDB();
     $stmt = $pdo->prepare("
         SELECT tu.*, u.user_email 
@@ -166,17 +171,20 @@ function getTaskUpdates($task_id) {
 }
 
 
-function getAllStaff() {
+function getAllStaff()
+{
     $pdo = getDB();
     $stmt = $pdo->query("SELECT staff_id, staff_names, staff_email FROM tbl_staff WHERE staff_status = 1 ORDER BY staff_names");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function formatDate($date) {
+function formatDate($date)
+{
     return $date ? date('M d, Y', strtotime($date)) : '—';
 }
 
-function getStatusClass($status) {
+function getStatusClass($status)
+{
     return match ($status) {
         'pending' => 'pending',
         'in_progress' => 'in-progress',
@@ -186,7 +194,180 @@ function getStatusClass($status) {
     };
 }
 
-function getPriorityBadge($priority) {
+function getPriorityBadge($priority)
+{
     $labels = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent'];
     return $labels[$priority] ?? 'Medium';
+}
+
+/* --------------------------------------------------------------
+   1. Get ALL tasks for a staff member (no filters)
+   -------------------------------------------------------------- */
+function getTasksForStaff(int $staff_id): array
+{
+    $db = getDB();
+
+    $sql = "
+        SELECT
+            t.*,
+            s1.staff_names AS assigned_by_name,
+            s2.staff_names AS assigned_to_name,
+            u1.user_email   AS assigned_by_email,
+            s2.staff_email  AS assigned_to_email
+        FROM tbl_tasks t
+        LEFT JOIN tbl_hm_users u1 ON t.assigned_by = u1.user_id
+        LEFT JOIN tbl_staff s1 ON u1.user_id = s1.user_id
+        LEFT JOIN tbl_staff s2 ON t.assigned_to = s2.staff_id
+        WHERE t.is_deleted = 0
+          AND t.assigned_to = :staff_id
+        ORDER BY t.created_at DESC
+    ";
+
+    $stmt = $db->prepare($sql);
+    $stmt->execute([':staff_id' => $staff_id]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($rows as &$row) {
+        $row['attachments'] = $row['attachments'] ? json_decode($row['attachments'], true) : [];
+    }
+    return $rows;
+}
+
+/* --------------------------------------------------------------
+   2. Export to CSV
+   -------------------------------------------------------------- */
+function exportCSV(array $tasks, string $staff_name)
+{
+    $filename = "tasks_" . preg_replace('/[^a-zA-Z0-9]/', '_', $staff_name) . "_" . date('Ymd_His') . ".csv";
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+    $out = fopen('php://output', 'w');
+    fputcsv($out, [
+        'ID',
+        'Title',
+        'Description',
+        'Assigned By',
+        'Status',
+        'Priority',
+        'Due Date',
+        'Created At',
+        'Completed At',
+        'Attachments Count'
+    ]);
+
+    foreach ($tasks as $t) {
+        fputcsv($out, [
+            $t['task_id'],
+            $t['title'],
+            $t['description'],
+            $t['assigned_by_name'],
+            $t['status'],
+            $t['priority'],
+            $t['due_date'],
+            $t['created_at'],
+            $t['completed_at'] ?? '',
+            count($t['attachments'])
+        ]);
+    }
+    fclose($out);
+    exit;
+}
+
+/* --------------------------------------------------------------
+   3. Export to PDF using MPDF (same as your other report)
+   -------------------------------------------------------------- */
+function exportPDF(array $tasks, string $staff_name)
+{
+    $mpdf = new \Mpdf\Mpdf([
+        'mode'          => 'utf-8',
+        'format'        => 'A4',
+        'margin_top'    => 25,
+        'margin_bottom' => 25,
+        'margin_left'   => 20,
+        'margin_right'  => 20,
+    ]);
+
+    $mpdf->SetTitle('Staff Task Report – ' . $staff_name);
+    $mpdf->SetAuthor('Task Manager');
+    $mpdf->SetCreator('Task Manager');
+
+    $logoPath = __DIR__ . '/assets/Logo.png';
+    $logoHtml = file_exists($logoPath) ? '<img src="' . $logoPath . '" style="width:120px; height:auto; margin-bottom:10px;">' : '';
+
+    $html = '
+    <!DOCTYPE html>
+    <html><head><meta charset="utf-8">
+    <style>
+        body {font-family: DejaVu Sans, sans-serif; color:#1f2937; font-size:11pt; margin:0; padding:0;}
+        .header {text-align:center; margin-bottom:30px;}
+        .title {font-size:18pt; font-weight:700; margin:5px 0;}
+        .info {font-size:10pt; color:#6b7280;}
+        .task-entry {border-left:4px solid #007aff; background:#f8f9fa; padding:12px 16px; margin-bottom:16px; border-radius:8px;}
+        .task-title {font-weight:600; font-size:12pt; margin-bottom:6px;}
+        .task-meta {font-size:9pt; color:#555; margin-bottom:6px;}
+        .task-desc {font-size:10pt; margin-bottom:6px; color:#333;}
+        .badge {padding:2px 6px; border-radius:6px; color:#fff; font-size:0.75em;}
+        .badge-pending {background:#856404;}
+        .badge-in_progress {background:#0c5460;}
+        .badge-completed {background:#155724;}
+        .badge-overdue {background:#721c24;}
+        .badge-low {background:#6c757d;}
+        .badge-medium {background:#0f5e8a;}
+        .badge-high {background:#e0a800;}
+        .badge-urgent {background:#c82333;}
+        .no-data {text-align:center; padding:40px; color:#888; font-style:italic;}
+    </style>
+    </head><body>
+
+    <div class="header">
+        ' . $logoHtml . '
+        <div class="title">STAFF TASK REPORT</div>
+        <div class="info"><strong>Staff:</strong> ' . htmlspecialchars($staff_name) . ' | <strong>Generated:</strong> ' . date('F j, Y \a\t H:i') . '</div>
+    </div>';
+
+    if (empty($tasks)) {
+        $html .= '<div class="no-data">No tasks found for this staff member.</div>';
+    } else {
+        foreach ($tasks as $t) {
+            $statusClass = 'badge-' . str_replace('_', '_', $t['status']);
+            $priorityClass = 'badge-' . $t['priority'];
+            $html .= '
+            <div class="task-entry">
+                <div class="task-title">' . htmlspecialchars($t['title']) . '</div>
+                <div class="task-meta"><strong>Assigned By:</strong> ' . htmlspecialchars($t['assigned_by_name']) . ' | 
+                <strong>Status:</strong> <span class="badge ' . $statusClass . '">' . ucfirst(str_replace('_', ' ', $t['status'])) . '</span> | 
+                <strong>Priority:</strong> <span class="badge ' . $priorityClass . '">' . ucfirst($t['priority']) . '</span></div>
+                <div class="task-meta"><strong>Due Date:</strong> ' . ($t['due_date'] ? date('M j, Y', strtotime($t['due_date'])) : '—') . ' | 
+                <strong>Assigned:</strong> ' . date('M j, Y', strtotime($t['created_at'])) . ' | 
+                <strong>Completed:</strong> ' . ($t['completed_at'] ? date('M j, Y', strtotime($t['completed_at'])) : '—') . '</div>
+                ' . (!empty($t['description']) ? '<div class="task-desc"><strong>Description:</strong> ' . nl2br(htmlspecialchars($t['description'])) . '</div>' : '') . '
+                <div class="task-meta"><strong>Attachments:</strong> ' . count($t['attachments']) . ' file(s)</div>
+            </div>';
+        }
+    }
+
+    $html .= '</body></html>';
+
+    $mpdf->WriteHTML($html);
+    $mpdf->Output('staff_tasks_' . preg_replace('/[^a-zA-Z0-9]/', '_', $staff_name) . '_' . date('Ymd_His') . '.pdf', 'D');
+    exit;
+}
+
+
+/* --------------------------------------------------------------
+   4. Unified Export Dispatcher
+   -------------------------------------------------------------- */
+function exportStaffTasks(int $staff_id, string $format, array $tasks)
+{
+    $db = getDB();
+    $stmt = $db->prepare("SELECT staff_names FROM tbl_staff WHERE staff_id = ?");
+    $stmt->execute([$staff_id]);
+    $name = $stmt->fetchColumn() ?: 'unknown';
+
+    if ($format === 'csv') {
+        exportCSV($tasks, $name);
+    } elseif ($format === 'pdf') {
+        exportPDF($tasks, $name);
+    }
 }
