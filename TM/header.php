@@ -27,7 +27,7 @@ $staff_email = $_SESSION['user_email'];
         <i class="fas fa-bell"></i>
         <span class="notification-badge"></span>
       </button>
-  <a href="dashboard.php" class="btn btn-primary">
+  <a href="report.php" class="btn btn-primary">
     <i class="fas fa-chart-line"></i> Staff Task Report
   </a>
 
