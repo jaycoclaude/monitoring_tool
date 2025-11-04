@@ -85,14 +85,6 @@ function getTasks(int $current_user_id): array
         return [];
     }
 }
-
-
-
-
-
-
-
-
 function getTaskById($id)
 {
     $pdo = getDB();
@@ -142,18 +134,25 @@ function addTask($data)
 function updateTaskStatus($task_id, $status, $staff_id)
 {
     $pdo = getDB();
-    $pdo->beginTransaction();
 
-    // Update task
-    $stmt = $pdo->prepare("UPDATE tbl_tasks SET status = ?, updated_at = NOW() WHERE task_id = ?");
-    $stmt->execute([$status, $task_id]);
+    try {
+        $pdo->beginTransaction();
 
-    // Log update
-    $stmt = $pdo->prepare("INSERT INTO tbl_task_updates (task_id, staff_id, status_change, created_at) 
-                           VALUES (?, ?, ?, NOW())");
-    $stmt->execute([$task_id, $staff_id, $status]);
 
-    $pdo->commit();
+        $stmt = $pdo->prepare("UPDATE tbl_tasks SET status = ?, updated_at = NOW() WHERE task_id = ?");
+        $stmt->execute([$status, $task_id]);
+
+
+        $stmt = $pdo->prepare("INSERT INTO tbl_task_updates (task_id, staff_id, status_change, created_at) 
+                               VALUES (?, ?, ?, NOW())");
+        $stmt->execute([$task_id, $staff_id, $status]);
+
+        $pdo->commit();
+        return true;
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        return false;
+    }
 }
 
 function getTaskUpdates($task_id)

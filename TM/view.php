@@ -3,9 +3,18 @@ require_once '../includes/auth.php';
 require_once 'data.php';
 $current_staff = $_SESSION['user_id'];
 
+// === HANDLE STATUS UPDATE WITH FLASH ===
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['status'])) {
-    updateTaskStatus($_POST['id'], $_POST['status'], $current_staff);
-    header("Location: view.php?id=" . $_POST['id']);
+    $updated = updateTaskStatus($_POST['id'], $_POST['status'], $current_staff);
+    
+    if ($updated) {
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Status updated successfully!'];
+    } else {
+        $_SESSION['flash'] = ['type' => 'error', 'msg' => 'Failed to update status.'];
+    }
+
+    // Stay on same page to show toast
+    header("Location: view.php?id=" . intval($_POST['id']));
     exit;
 }
 
@@ -22,6 +31,49 @@ $updates = getTaskUpdates($task_id);
 
 <!-- Font Awesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+    /* === TOAST NOTIFICATION – ONLY ADDED STYLES === */
+    .toast {
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        min-width: 300px;
+        max-width: 420px;
+        background: white;
+        border-radius: 14px;
+        padding: 16px 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 15px;
+        font-weight: 500;
+        z-index: 10000;
+        animation: slideIn 0.4s ease;
+        border-left: 5px solid;
+    }
+    .toast-success { color: #30a14e; border-left-color: #30a14e; background: #f0fdf4; }
+    .toast-error   { color: #d73a49; border-left-color: #d73a49; background: #fdf2f2; }
+    .toast i:first-child { font-size: 20px; }
+    .toast-close {
+        margin-left: auto;
+        background: none;
+        border: none;
+        font-size: 18px;
+        color: #8e8e93;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 50%;
+        transition: background 0.2s;
+    }
+    .toast-close:hover { background: rgba(0,0,0,0.1); }
+
+    @keyframes slideIn {
+        from { transform: translateX(120%); opacity: 0; }
+        to   { transform: translateX(0); opacity: 1; }
+    }
+</style>
 
 <div class="page-header">
     <h1 class="page-title" style="color:#0A3D62;">
@@ -102,5 +154,33 @@ $updates = getTaskUpdates($task_id);
         </ul>
     </div>
 <?php endif; ?>
+
+<!-- TOAST MESSAGE -->
+<?php if (isset($_SESSION['flash'])): 
+    $flash = $_SESSION['flash'];
+    unset($_SESSION['flash']);
+?>
+<div class="toast toast-<?= $flash['type'] ?>" id="toast">
+    <i class="fas <?= $flash['type'] === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle' ?>"></i>
+    <span><?= htmlspecialchars($flash['msg']) ?></span>
+    <button type="button" class="toast-close" id="close-toast">
+        <i class="fas fa-times"></i>
+    </button>
+</div>
+<?php endif; ?>
+
+<script>
+// === TOAST: CLOSE → REDIRECT TO INDEX ===
+document.getElementById('close-toast')?.addEventListener('click', function() {
+    window.location.href = 'index.php';
+});
+
+// === AUTO-REDIRECT AFTER 4 SECONDS ===
+setTimeout(function() {
+    if (document.getElementById('toast')) {
+        window.location.href = 'index.php';
+    }
+}, 4000);
+</script>
 
 <?php require_once 'footer.php'; ?>

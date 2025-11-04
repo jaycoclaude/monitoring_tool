@@ -48,7 +48,7 @@ $html = '
 <title>Completed Tasks Report</title>
 <style>
     body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-family: -elegant-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         color: #1f2937;
         font-size: 11pt;
         margin: 0;

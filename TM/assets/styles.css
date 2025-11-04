@@ -10,7 +10,7 @@ body {
 }
 
 /* LAYOUT */
-.dashboard-container { flex:1; max-width:1240px; margin:0 auto; padding:24px 20px; display:flex; flex-direction:column; gap:32px; }
+.dashboard-container { flex:1;  margin:3 auto; padding:24px 20px; display:flex; flex-direction:column; gap:32px; }
 .footer { margin-top:auto; padding:20px; background:#0f5e8a; color:#fff; text-align:center; font-size:0.875rem; font-weight:500; }
 
 /* HEADER */
