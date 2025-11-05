@@ -232,6 +232,36 @@ function getTasksForStaff(int $staff_id): array
     return $rows;
 }
 
+function updateTask($id, $data): bool {
+    $pdo = getDB();
+    $stmt = $pdo->prepare("
+        UPDATE tbl_tasks SET
+            title = :title,
+            description = :description,
+            priority = :priority,
+            status = :status,
+            due_date = :due_date,
+            assigned_to = :assigned_to,
+            updated_at = NOW()
+        WHERE task_id = :id
+    ");
+    return $stmt->execute([
+        ':id' => $id,
+        ':title' => $data['title'],
+        ':description' => $data['description'],
+        ':priority' => $data['priority'],
+        ':status' => $data['status'],
+        ':due_date' => $data['due_date'],
+        ':assigned_to' => $data['assigned_to']
+    ]);
+}
+
+function deleteTask($id): bool {
+    $pdo = getDB();
+    $stmt = $pdo->prepare("UPDATE tbl_tasks SET is_deleted = 1 WHERE task_id = :id");
+    return $stmt->execute([':id' => $id]);
+}
+
 /* --------------------------------------------------------------
    2. Export to CSV
    -------------------------------------------------------------- */
