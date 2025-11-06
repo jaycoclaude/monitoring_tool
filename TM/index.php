@@ -84,7 +84,7 @@ require_once 'header.php';
     <div class="tabs-line">
         <button class="tab-link active" onclick="openTab(event, 'Created')" id="createdTab">
             <i class="fas fa-paper-plane"></i> Created by Me
-            <span class="tab-count"><?= count($createdTasks) ?></span>
+            <span class="tab-count pulse"><?= count($createdTasks) ?></span>
         </button>
         <button class="tab-link" onclick="openTab(event, 'Inbox')" id="inboxTab">
             <i class="fas fa-inbox"></i> Assigned to Me
@@ -208,31 +208,37 @@ function renderTaskCard($task)
 
     return "
     <div class='card {$priorityClass[0]}'>
-        <div class='card-header'>
-            <h3>" . htmlspecialchars($task['title']) . "</h3>
-            <div style='display:flex; gap:6px; flex-wrap:wrap;'>
-                <span class='status {$statusClass}'>{$statusText}</span>
-                <span class='priority-badge {$priorityClass[1]}'>{$priorityClass[3]} {$priorityClass[2]}</span>
-            </div>
+    <div class='card-header'>
+        <h3>" . htmlspecialchars($task['title']) . "</h3>
+        <div style='display:flex; gap:6px; flex-wrap:wrap;'>
+            <span class='status {$statusClass}'>
+                <i class='fas fa-spinner'></i> {$statusText}
+            </span>
+            <span class='priority-badge {$priorityClass[1]}'>
+                {$priorityClass[3]} {$priorityClass[2]}
+            </span>
         </div>
+    </div>
 
-        <div class='card-meta'>
-            <div><i class='fas fa-user-check'></i> <strong>By:</strong> {$assignedBy}</div>
-            <div><i class='fas fa-user'></i> <strong>To:</strong> {$assignedTo}</div>
-            <div><i class='fas fa-calendar-alt'></i> <strong>Created:</strong> " . date('M d, Y', strtotime($task['created_at'])) . "</div>
-        </div>
+    <div class='card-meta'>
+        <div><i class='fas fa-user-check'></i> <strong>By:</strong> {$assignedBy}</div>
+        <div><i class='fas fa-user'></i> <strong>To:</strong> {$assignedTo}</div>
+        <div><i class='fas fa-calendar-alt'></i> <strong>Created:</strong> " . date('M d, Y', strtotime($task['created_at'])) . "</div>
+    </div>
 
-        {$dueDateHtml}
+    {$dueDateHtml}
 
-        <div>
-            <div class='description-label'>Description</div>
-            <div class='description'>" . nl2br(htmlspecialchars($task['description'])) . "</div>
-        </div>
+    <div>
+        <div class='description-label'>Description</div>
+        <div class='description'>" . nl2br(htmlspecialchars($task['description'])) . "</div>
+    </div>
 
-        <div class='attachments'><i class='fas fa-paperclip'></i> <strong>Attachments:</strong> {$attachments}</div>
+    <div class='attachments'><i class='fas fa-paperclip'></i> <strong>Attachments:</strong> {$attachments}</div>
 
-        {$buttonsHtml}
-    </div>";
+    {$buttonsHtml}
+</div>
+
+";
 }
 
 function renderPagination($tab, $totalPages, $currentPage, $searchTerm)

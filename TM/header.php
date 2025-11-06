@@ -4,42 +4,47 @@ $staff_email = $_SESSION['user_email'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TaskFlow</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/styles.css">
 </head>
+
 <body>
 
-<header class="header">
-  <div class="header-content">
-    <div class="branding">
-      <div class="logo">T</div>
-      <div class="brand-text" a href="../landing_page.php">
-        <h1>TaskFlow</h1>
-        <p>Assignment Management</p>
+  <header class="header">
+    <div class="header-content">
+      <div class="branding">
+        <div class="logo">T</div>
+        <div class="brand-text" a href="../landing_page.php">
+          <h1>TaskFlow</h1>
+          <p>Assignment Management</p>
+        </div>
+      </div>
+      <div class="header-actions">
+
+        <a href="report.php" class="btn btn-primary">
+          <i class="fas fa-file-pdf"></i> Reports
+        </a>
+        <a href="index.php" class="btn btn-primary">
+          <i class="fas fa-dashboard"></i> DashBoard
+        </a>
+
+        <button class="icon-button" title="Notifications">
+          <i class="fas fa-bell"></i>
+          <span class="notification-badge"></span>
+        </button>
+
+        <div class="user-profile">
+          <div class="user-avatar"><i class="fas fa-user"></i></div>
+          <div class="user-name"><?php echo $staff_email; ?></div>
+        </div>
       </div>
     </div>
-    <div class="header-actions">
-      <button class="icon-button" title="Notifications">
-        <i class="fas fa-bell"></i>
-        <span class="notification-badge"></span>
-      </button>
-  <a href="report.php" class="btn btn-primary">
-    <i class="fas fa-chart-line"></i> Reports
-  </a>
-    <a href="index.php" class="btn btn-primary">
-    <i class="fas fa-dashboard"></i> DashBoard
-  </a>
+  </header>
 
-      <div class="user-profile">
-        <div class="user-avatar"><i class="fas fa-user"></i></div>
-        <div class="user-name"><?php echo $staff_email; ?></div>
-      </div>
-    </div>
-  </div>
-</header>
-
-<div class="dashboard-container">
+  <div class="dashboard-container">

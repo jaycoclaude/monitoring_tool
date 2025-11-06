@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($_FILES['review_attachments']['name'] as $k => $name) {
                 if ($_FILES['review_attachments']['error'][$k] === 0) {
                     $ext = pathinfo($name, PATHINFO_EXTENSION);
-                    if (in_array(strtolower($ext), ['pdf','doc','docx','jpg','png','zip'])) {
+                    if (in_array(strtolower($ext), ['pdf', 'doc', 'docx', 'jpg', 'png', 'zip'])) {
                         $file = time() . "_$k.$ext";
                         if (move_uploaded_file($_FILES['review_attachments']['tmp_name'][$k], $dir . $file)) {
                             $uploaded[] = $file;
@@ -32,8 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $ok = submitTaskForReview($task_id, getCurrentStaffId(), $comment, $uploaded);
         $_SESSION['flash'] = $ok
-            ? ['type'=>'success','msg'=>'Task submitted for review.']
-            : ['type'=>'error','msg'=>'Failed to submit for review.'];
+            ? ['type' => 'success', 'msg' => 'Task submitted for review.']
+            : ['type' => 'error', 'msg' => 'Failed to submit for review.'];
         header("Location: view.php?id=$task_id");
         exit;
     }
@@ -42,8 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['approve'])) {
         $ok = approveTask($task_id, getCurrentStaffId());
         $_SESSION['flash'] = $ok
-            ? ['type'=>'success','msg'=>'Task approved & marked completed.']
-            : ['type'=>'error','msg'=>'Approval failed.'];
+            ? ['type' => 'success', 'msg' => 'Task approved & marked completed.']
+            : ['type' => 'error', 'msg' => 'Approval failed.'];
         header("Location: view.php?id=$task_id");
         exit;
     }
@@ -53,8 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $reason = trim($_POST['redo_reason'] ?? '');
         $ok = returnTaskForRedo($task_id, getCurrentStaffId(), $reason);
         $_SESSION['flash'] = $ok
-            ? ['type'=>'success','msg'=>'Task returned for re-do.']
-            : ['type'=>'error','msg'=>'Return failed.'];
+            ? ['type' => 'success', 'msg' => 'Task returned for re-do.']
+            : ['type' => 'error', 'msg' => 'Return failed.'];
         header("Location: view.php?id=$task_id");
         exit;
     }
@@ -63,8 +63,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['status'])) {
         $ok = updateTaskStatus($task_id, $_POST['status'], getCurrentStaffId());
         $_SESSION['flash'] = $ok
-            ? ['type'=>'success','msg'=>'Status updated.']
-            : ['type'=>'error','msg'=>'Update failed.'];
+            ? ['type' => 'success', 'msg' => 'Status updated.']
+            : ['type' => 'error', 'msg' => 'Update failed.'];
         header("Location: view.php?id=$task_id");
         exit;
     }
@@ -86,7 +86,8 @@ $updates = getTaskUpdates($task_id);
 // ------------------------------------------------------------------
 //  Helper: current staff_id
 // ------------------------------------------------------------------
-function getCurrentStaffId(): int {
+function getCurrentStaffId(): int
+{
     static $id = null;
     if ($id === null) {
         $db = getDB();
@@ -158,10 +159,7 @@ function getCurrentStaffId(): int {
                     <label><i class="fa-solid fa-circle-notch"></i> Status</label>
                     <span class="status-badge status-<?= $task['status'] ?>">
                         <i class="fa-solid 
-                            <?= $task['status'] === 'completed' ? 'fa-check-circle' : 
-                                ($task['status'] === 'in_progress' ? 'fa-spinner' :
-                                ($task['status'] === 'pending' ? 'fa-pause-circle' :
-                                ($task['status'] === 'review' ? 'fa-eye' : 'fa-times-circle'))) ?>">
+                            <?= $task['status'] === 'completed' ? 'fa-check-circle' : ($task['status'] === 'in_progress' ? 'fa-spinner' : ($task['status'] === 'pending' ? 'fa-pause-circle' : ($task['status'] === 'review' ? 'fa-eye' : 'fa-times-circle'))) ?>">
                         </i>
                         <?= $task['status'] === 'review' ? 'Under Review' : ucfirst(str_replace('_', ' ', $task['status'])) ?>
                     </span>
@@ -189,96 +187,138 @@ function getCurrentStaffId(): int {
                     <div type="submit" name="status" value="completed"
                         class="btn <?= $task['status'] === 'completed' ? 'btn-primary' : 'btn-ghost' ?>" data-status="completed">
                         <i class="fa-solid fa-check"></i> Completed
-</div>
+                    </div>
                 </div>
             </form>
         </div>
 
+
+
         <!-- 2. Submit for Review (assignee only) -->
         <?php if ($task['assigned_to'] == getCurrentStaffId() && !in_array($task['status'], ['completed', 'review'])): ?>
-        <div class="card">
-            <h2 class="card-title"><i class="fa-solid fa-paper-plane"></i> Submit for Review</h2>
-            <form method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="task_id" value="<?= $task['task_id'] ?>">
-                <textarea name="review_comment" placeholder="Add a comment (optional)" rows="3"
-                          style="width:100%;margin-bottom:8px;"></textarea>
-                <input type="file" name="review_attachments[]" multiple
-                       accept=".pdf,.doc,.docx,.jpg,.png,.zip" style="margin-bottom:8px;">
-                <button type="submit" name="submit_review" class="btn btn-review">
-                    <i class="fa-solid fa-check-double"></i> Submit for Review
-                </button>
-            </form>
-        </div>
+            <div class="card submit-review">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fa-solid fa-paper-plane"></i> Submit for Review
+                    </h2>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" class="review-form">
+                    <input type="hidden" name="task_id" value="<?= $task['task_id'] ?>">
+
+                    <div class="form-group">
+                        <label for="review_comment">
+                            <i class="fa-solid fa-comment-dots"></i> Comment (Optional)
+                        </label>
+                        <textarea
+                            name="review_comment"
+                            id="review_comment"
+                            placeholder="Add a comment or summary for your submission..."
+                            rows="3">
+        </textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="review_attachments">
+                            <i class="fa-solid fa-paperclip"></i> Attach Files
+                        </label>
+                        <div class="file-input-wrapper">
+                            <input type="file" name="review_attachments[]" id="review_attachments" multiple
+                                accept=".pdf,.doc,.docx,.jpg,.png,.zip"><br>
+
+                        </div>
+                        <small class="hint">Allowed: PDF, DOC, DOCX, JPG, PNG, ZIP</small>
+                    </div><br>
+
+                    <div class="form-actions">
+                        <button type="submit" name="submit_review" class="btn btn-review">
+                            <i class="fa-solid fa-check-double"></i> Submit for Review
+                        </button>
+                    </div>
+                </form>
+            </div>
         <?php endif; ?>
+
+
 
         <!-- 3. Approve / Return (assigner only) -->
         <?php if ($task['assigned_by'] == $current_user_id && $task['status'] === 'review'): ?>
-        <div class="card">
-            <h2 class="card-title"><i class="fa-solid fa-gavel"></i> Review Decision</h2>
+            <div class="card review-decision">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fa-solid fa-gavel"></i> Review Decision
+                    </h2>
+                </div>
 
+                <div class="card-body">
+                    <form method="POST" class="decision-form">
+                        <input type="hidden" name="task_id" value="<?= $task['task_id'] ?>">
 
+                        <div class="form-group">
+                            <label for="redo_reason"><i class="fa-solid fa-comment-dots"></i> Comment</label>
+                            <textarea name="redo_reason" id="redo_reason" placeholder="Enter Comment..." rows="3" required style="width:100%;"></textarea>
+                        </div><br>
 
-            <form method="POST" style="display:inline;margin-left:8px;">
-                <input type="hidden" name="task_id" value="<?= $task['task_id'] ?>">
-                <textarea name="redo_reason" placeholder="Reason for return…" rows="2" required
-                          style="width:100%;margin:8px 0;"></textarea>
-                <button type="submit" name="return_redo" class="btn btn-return">
-                    <i class="fa-solid fa-undo"></i> Return for Re-do
-                </button>
-            </form>
-                        <form method="POST" style="display:inline;">
-                <input type="hidden" name="task_id" value="<?= $task['task_id'] ?>">
-                <button type="submit" name="approve" class="btn btn-approve">
-                    <i class="fa-solid fa-thumbs-up"></i> Approve (Complete)
-                </button>
-            </form>
-        </div>
+                        <div class="decision-actions" style="display: flex; justify-content: center; gap: 15px;">
+                            <button type="submit" name="return_redo" class="btn btn-return">
+                                <i class="fa-solid fa-rotate-left"></i> Return for Re-do
+                            </button>
+
+                            <button type="submit" name="approve" class="btn btn-approve">
+                                <i class="fa-solid fa-thumbs-up"></i> Approve (Complete)
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+
         <?php endif; ?>
     </div>
 </div>
 
 <!-- Original Task Attachments -->
 <?php if (!empty($task['attachments'])): ?>
-<div class="card" style="margin-top:25px;">
-    <h2 class="card-title"><i class="fa-solid fa-paperclip"></i> Task Attachments (<?= count($task['attachments']) ?>)</h2>
-    <ul class="attachment-list">
-        <?php foreach ($task['attachments'] as $file): ?>
-            <li class="attachment-item">
-                <span><i class="fa-solid fa-file"></i> <?= htmlspecialchars($file) ?></span>
-                <div class="attachment-actions">
-                    <a href="download.php?file=<?= urlencode($file) ?>&mode=preview" target="_blank" class="btn btn-ghost">
-                        <i class="fa-solid fa-eye"></i> Preview
-                    </a>
-                    <a href="download.php?file=<?= urlencode($file) ?>&mode=download" class="btn btn-primary">
-                        <i class="fa-solid fa-download"></i> Download
-                    </a>
-                </div>
-            </li>
-        <?php endforeach; ?>
-    </ul>
-</div>
-<?php endif; ?>
+    <div class="card" style="margin-top:25px;">
+        <h2 class="card-title"><i class="fa-solid fa-paperclip"></i> Task Attachments (<?= count($task['attachments']) ?>)</h2>
+        <ul class="attachment-list">
+            <?php foreach ($task['attachments'] as $file): ?>
+                <li class="attachment-item">
+                    <span><i class="fa-solid fa-file"></i> <?= htmlspecialchars($file) ?></span>
+                    <div class="attachment-actions">
+                        <a href="download.php?file=<?= urlencode($file) ?>&mode=preview" target="_blank" class="btn btn-ghost">
+                            <i class="fa-solid fa-eye"></i> Preview
+                        </a>
+                        <a href="download.php?file=<?= urlencode($file) ?>&mode=download" class="btn btn-primary">
+                            <i class="fa-solid fa-download"></i> Download
+                        </a>
+                    </div>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+<?php endif; ?> <br><br>
 
 <!-- Review Submission (if exists) -->
 <?php if ($review): ?>
-<div class="card review-box">
-    <h3><i class="fa-solid fa-comment-medical"></i> Review Submission</h3>
-    <p><strong>Submitted by:</strong> <?= htmlspecialchars($review['submitted_by_name']) ?>
-       on <?= date('M j, Y H:i', strtotime($review['created_at'])) ?></p>
-    <?php if ($review['comment']): ?>
-        <p><strong>Comment:</strong> <?= nl2br(htmlspecialchars($review['comment'])) ?></p>
-    <?php endif; ?>
-    <?php if (!empty($review['attachments'])): ?>
-        <div class="review-attach">
-            <strong>Review Attachments:</strong>
-            <?php foreach ($review['attachments'] as $f): ?>
-                <a href="download.php?file=<?= urlencode($f) ?>&mode=preview" target="_blank">
-                    <i class="fa-solid fa-paperclip"></i> <?= htmlspecialchars($f) ?>
-                </a>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
-</div>
+    <div class="card review-box">
+        <h3><i class="fa-solid fa-comment-medical"></i> Review Submission</h3>
+        <p><strong>Submitted by:</strong> <?= htmlspecialchars($review['submitted_by_name']) ?>
+            on <?= date('M j, Y H:i', strtotime($review['created_at'])) ?></p>
+        <?php if ($review['comment']): ?>
+            <p><strong>Comment:</strong> <?= nl2br(htmlspecialchars($review['comment'])) ?></p>
+        <?php endif; ?>
+        <?php if (!empty($review['attachments'])): ?>
+            <div class="review-attach">
+                <strong>Review Attachments:</strong>
+                <?php foreach ($review['attachments'] as $f): ?>
+                    <a href="download.php?file=<?= urlencode($f) ?>&mode=preview" target="_blank">
+                        <i class="fa-solid fa-paperclip"></i> <?= htmlspecialchars($f) ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
 <?php endif; ?>
 
 <!-- TOAST -->
@@ -286,20 +326,20 @@ function getCurrentStaffId(): int {
     $flash = $_SESSION['flash'];
     unset($_SESSION['flash']);
 ?>
-<div class="toast toast-<?= $flash['type'] ?>" id="toast">
-    <i class="fas <?= $flash['type'] === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle' ?>"></i>
-    <span><?= htmlspecialchars($flash['msg']) ?></span>
-    <button type="button" class="toast-close" id="close-toast">
-        <i class="fas fa-times"></i>
-    </button>
-</div>
+    <div class="toast toast-<?= $flash['type'] ?>" id="toast">
+        <i class="fas <?= $flash['type'] === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle' ?>"></i>
+        <span><?= htmlspecialchars($flash['msg']) ?></span>
+        <button type="button" class="toast-close" id="close-toast">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
 <?php endif; ?>
 
 <script>
-document.getElementById('close-toast')?.addEventListener('click', () => window.location.href = 'index.php');
-setTimeout(() => {
-    if (document.getElementById('toast')) window.location.href = 'index.php';
-}, 4000);
+    document.getElementById('close-toast')?.addEventListener('click', () => window.location.href = 'index.php');
+    setTimeout(() => {
+        if (document.getElementById('toast')) window.location.href = 'index.php';
+    }, 4000);
 </script>
 
 <?php require_once 'footer.php'; ?>
