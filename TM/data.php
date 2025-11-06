@@ -400,3 +400,141 @@ function exportStaffTasks(int $staff_id, string $format, array $tasks)
         exportPDF($tasks, $name);
     }
 }
+
+// ---------------------------------------------------------------
+//  NEW STATUS (add to the ENUM in the DB – see note at the end)
+// ---------------------------------------------------------------
+define('STATUS_REVIEW', 'review');
+
+// ---------------------------------------------------------------
+//  1. Submit for Review (assignee)
+// ---------------------------------------------------------------
+function submitTaskForReview(int $task_id, int $staff_id, string $comment, array $newFiles = []): bool
+{
+    $pdo = getDB();
+    try {
+        $pdo->beginTransaction();
+
+        // 1. Save comment + files in tbl_task_updates
+        $report = !empty($newFiles) ? json_encode($newFiles) : null;
+        $stmt = $pdo->prepare("
+            INSERT INTO tbl_task_updates
+                (task_id, staff_id, comment, report_filename, status_change, created_at)
+            VALUES
+                (?, ?, ?, ?, ?, NOW())
+        ");
+        $stmt->execute([$task_id, $staff_id, $comment, $report, STATUS_REVIEW]);
+
+        // 2. Move uploaded files to /uploads/
+        if (!empty($newFiles)) {
+            $dir = __DIR__ . '/uploads/';
+            if (!is_dir($dir)) mkdir($dir, 0755, true);
+            foreach ($_FILES['review_attachments']['name'] as $k => $name) {
+                if ($_FILES['review_attachments']['error'][$k] === 0) {
+                    $ext = pathinfo($name, PATHINFO_EXTENSION);
+                    if (in_array(strtolower($ext), ['pdf','doc','docx','jpg','png','zip'])) {
+                        $file = time() . "_$k.$ext";
+                        move_uploaded_file($_FILES['review_attachments']['tmp_name'][$k], $dir . $file);
+                        // file name already stored in JSON above
+                    }
+                }
+            }
+        }
+
+        // 3. Change task status
+        $stmt = $pdo->prepare("UPDATE tbl_tasks SET status = ?, updated_at = NOW() WHERE task_id = ?");
+        $stmt->execute([STATUS_REVIEW, $task_id]);
+
+        $pdo->commit();
+        return true;
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        error_log("submitTaskForReview: " . $e->getMessage());
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------
+//  2. Approve → completed (assigner)
+// ---------------------------------------------------------------
+function approveTask(int $task_id, int $staff_id): bool
+{
+    return changeTaskStatus($task_id, 'completed', $staff_id);
+}
+
+// ---------------------------------------------------------------
+//  3. Return for re-do (assigner) → in_progress + reason in comment
+// ---------------------------------------------------------------
+function returnTaskForRedo(int $task_id, int $staff_id, string $reason): bool
+{
+    $pdo = getDB();
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("
+            INSERT INTO tbl_task_updates
+                (task_id, staff_id, comment, status_change, created_at)
+            VALUES
+                (?, ?, ?, 'in_progress', NOW())
+        ");
+        $stmt->execute([$task_id, $staff_id, $reason]);
+
+        $stmt = $pdo->prepare("UPDATE tbl_tasks SET status = 'in_progress', updated_at = NOW() WHERE task_id = ?");
+        $stmt->execute([$task_id]);
+
+        $pdo->commit();
+        return true;
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------
+//  Helper – generic status change (used by approve)
+// ---------------------------------------------------------------
+function changeTaskStatus(int $task_id, string $newStatus, int $staff_id): bool
+{
+    $pdo = getDB();
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("INSERT INTO tbl_task_updates
+                (task_id, staff_id, status_change, created_at)
+            VALUES (?, ?, ?, NOW())");
+        $stmt->execute([$task_id, $staff_id, $newStatus]);
+
+        $stmt = $pdo->prepare("UPDATE tbl_tasks SET status = ?, updated_at = NOW() WHERE task_id = ?");
+        $stmt->execute([$newStatus, $task_id]);
+
+        $pdo->commit();
+        return true;
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------
+//  4. Get the latest review entry (comment + files)
+// ---------------------------------------------------------------
+function getLatestReview(int $task_id): ?array
+{
+    $pdo = getDB();
+    $stmt = $pdo->prepare("
+        SELECT tu.*, s.staff_names AS submitted_by_name
+        FROM tbl_task_updates tu
+        JOIN tbl_staff s ON tu.staff_id = s.staff_id
+        WHERE tu.task_id = ? AND tu.status_change = ?
+        ORDER BY tu.created_at DESC LIMIT 1
+    ");
+    $stmt->execute([$task_id, STATUS_REVIEW]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) return null;
+
+    $row['attachments'] = $row['report_filename']
+        ? json_decode($row['report_filename'], true)
+        : [];
+    return $row;
+}
+
