@@ -1,8 +1,8 @@
 <?php
 // includes/config.php
-define('DB_HOST', '10.8.202.4');
-define('DB_USER', 'sd_us12');
-define('DB_PASS', 'Qwerty@123');
+define('DB_HOST', '127.0.0.1');
+define('DB_USER', 'root');
+define('DB_PASS', '');
 define('DB_NAME', 'mt_db');
 
 try {

@@ -5,26 +5,26 @@ $yeartoday = date("Y");
 $weektoday = date("W");
 
 // Function to check if date is valid
-function isValidDate($date)
-{
-    return !empty($date) && $date !== "0000-00-00";
-}
+// function isValidDate($date)
+// {
+//     return !empty($date) && $date !== "0000-00-00";
+// }
 // Function to calculate days between two dates
-function getDaysBetween($start, $end)
-{
-    if (isValidDate($start) && isValidDate($end)) {
-        $days = (strtotime($end) - strtotime($start)) / 86400;
-        return $days > 0 ? $days : 0; // prevent negative days
-    }
-    return 0;
-}
+// function getDaysBetween($start, $end)
+// {
+//     if (isValidDate($start) && isValidDate($end)) {
+//         $days = (strtotime($end) - strtotime($start)) / 86400;
+//         return $days > 0 ? $days : 0; // prevent negative days
+//     }
+//     return 0;
+// }
 
 session_start();
 require_once '../includes/config.php'; // PDO connection assumed to be set up here
 
 // Check login session
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_access'])) {
-    header("Location: index.php");
+    header("Location: ../index.php");
     exit();
 }
 
@@ -37,39 +37,48 @@ try {
     $stmt = $pdo->prepare("SELECT user_id, user_access, user_status FROM tbl_hm_users WHERE user_id = :user_id LIMIT 1");
     $stmt->execute(['user_id' => $user_id]);
     $user = $stmt->fetch(PDO::FETCH_OBJ);
-
+if (!$stmt) {
+    // Prepare failed
+    echo "<p>You are not allowed to access.</p>";
+    exit;
+}
     if (!$user || $user->user_status != 1) {
         session_destroy();
-        header("Location: index.php");
+        header("Location: ./index.php");
         exit();
     }
 
     // Check user access level
-    if ($user_access == 2) {
-      header("Location: all_application.php");
+    if ($user_access == 22) {
+      header("Location: all_application_fsmil.php");
         exit();
         // URLs for access level 2
 ?>
         
 <?php
-    } elseif ($user_access == 3) {
-      header("Location: all_application.php");
+    } elseif ($user_access == 23) {
+      header("Location: all_application_fsmil.php");
         exit();
         // URL for access level 3
 ?>
        
 <?php
-
     }
     
-    
-      
+     elseif($user_access !== '21' &&  $user_access !=='22' && $user_access !=='23' && $user_access !=='100')
+    {
+        echo 'you are not allowed to access this page <a href="../landing_page.php">Return back</a>';
+        
+        exit();
+    }
+    // else
+    // {
+    //     echo "Not allowed";
+    // }
 } catch (Exception $e) {
     error_log('Error in dashboard: ' . $e->getMessage());
     echo '<div style="color:red;">An error occurred. Please contact the administrator.</div>';
 }
-
-if ($user_access == 4 || $user_access == 100 || $user_access == 1) {
 
 $count_expired_products = 0;
 $count_about_to_expire_products = 0;
@@ -222,12 +231,12 @@ foreach ($applications_req as $application_req) {
     }
 }
 
-include 'application.php';
-include 'variations.php';
-include 'renewal.php';
+include 'application_fsmil.php';
+include 'variations_fsmil.php';
+include 'renewal_fsmil.php';
 ?>
 <head>
-  <title>MA - Monitoring Tool</title>
+  <title>FSMIL - Monitoring Tool</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link
@@ -811,19 +820,25 @@ include 'renewal.php';
             gap: 0.75rem; /* Mobile: Slightly less spacing */
         }
     }
+    a.branding-link {
+    text-decoration: none;
+    color: inherit;
+}
 </style>
 </head>
 
 <body>
   <header class="header">
     <div class="header-content">
-      <div class="branding">
+       <a href="../landing_page.php" class="branding-link">
+    <div class="branding">
         <div class="logo">H</div>
         <div class="brand-text">
-          <h1>HMDR Dashboard</h1>
-          <p>Human Medcines Monitoring Tool</p>
+            <h1>FSMIL Dashboard</h1>
+            <p>Inspection & Licensing - Food Monitoring tool</p>
         </div>
-      </div>
+    </div>
+</a>
       <div class="header-actions">
         <button class="icon-button">
           <i class="fas fa-bell"></i>
@@ -880,22 +895,22 @@ include 'renewal.php';
           <summary><i class="fas fa-filter"></i> All Applications</summary>
           <ul>
             <li>
-              <a href="hmdr_page.php?stage_id=backlog"
+              <a href="fsmil_page.php?stage_id=backlog"
                 ><i class="fas fa-history"></i> Backlog</a
               >
             </li>
             <li>
-              <a href="hmdr_page.php?stage_id=10"
+              <a href="fsmil_page.php?stage_id=10"
                 ><i class="fas fa-box"></i> Registered Products</a
               >
             </li>
             <li>
-              <a href="hmdr_page.php?stage_id=14"
+              <a href="fsmil_page.php?stage_id=14"
                 ><i class="fas fa-times-circle"></i> Rejected</a
               >
             </li>
             <li>
-              <a href="hmdr_page.php?stage_id=30"
+              <a href="fsmil_page.php?stage_id=30"
                 ><i class="fas fa-calendar-times"></i> Expired</a
               >
             </li>
@@ -907,17 +922,17 @@ include 'renewal.php';
           <ul>
             <li>
               <details>
-                <summary><i class="fas fa-search"></i> Screening</summary>
+                <summary><i class="fas fa-search"></i> Under Assessment</summary>
                 <ul>
                   <li>
-                    <a href="hmdr_page.php?stage_id=1"
+                    <a href="fsmil_page.php?stage_id=1"
                       ><i class="fas fa-hourglass-start"></i> Pending
-                      Screening</a
+                      Assessment</a
                     >
                   </li>
                   <li>
-                    <a href="hmdr_page.php?stage_id=2"
-                      ><i class="fas fa-spinner"></i> Under Screening</a
+                    <a href="fsmil_page.php?stage_id=2"
+                      ><i class="fas fa-spinner"></i> Under Assessment</a
                     >
                   </li>
                 </ul>
@@ -928,54 +943,54 @@ include 'renewal.php';
                 <summary><i class="fas fa-tasks"></i> Assessment</summary>
                 <ul>
                   <li>
-                    <a href="hmdr_page.php?stage_id=7"
+                    <a href="fsmil_page.php?stage_id=7"
                       ><i class="fas fa-hourglass-half"></i> Pending
                       Assessment</a
                     >
                   </li>
                   <li>
-                    <a href="hmdr_page.php?stage_id=3"
+                    <a href="fsmil_page.php?stage_id=3"
                       ><i class="fas fa-clipboard-check"></i> Under 1st
                       Assessment</a
                     >
                   </li>
                   <li>
-                    <a href="hmdr_page.php?stage_id=35"
+                    <a href="fsmil_page.php?stage_id=35"
                       ><i class="fas fa-clipboard-list"></i> Pending 2nd
                       Assessment</a
                     >
                   </li>
                   <li>
-                    <a href="hmdr_page.php?stage_id=4"
+                    <a href="fsmil_page.php?stage_id=4"
                       ><i class="fas fa-tasks"></i> Under 2nd Assessment</a
                     >
                   </li>
                   <li>
-                    <a href="hmdr_page.php?stage_id=36"
+                    <a href="fsmil_page.php?stage_id=36"
                       ><i class="fas fa-folder-plus"></i> Pending ADD. DATA 1st
                       Assessment</a
                     >
                   </li>
                   <li>
-                    <a href="hmdr_page.php?stage_id=21"
+                    <a href="fsmil_page.php?stage_id=21"
                       ><i class="fas fa-file-medical"></i> ADD. DATA, Under 1st
                       Assessment</a
                     >
                   </li>
                   <li>
-                    <a href="hmdr_page.php?stage_id=37"
+                    <a href="fsmil_page.php?stage_id=37"
                       ><i class="fas fa-folder-plus"></i> Pending ADD. DATA 2nd
                       Assessment</a
                     >
                   </li>
                   <li>
-                    <a href="hmdr_page.php?stage_id=22"
+                    <a href="fsmil_page.php?stage_id=22"
                       ><i class="fas fa-file-medical"></i> ADD. DATA, Under 2nd
                       Assessment</a
                     >
                   </li>
                   <li>
-                    <a href="hmdr_page.php?stage_id=38"
+                    <a href="fsmil_page.php?stage_id=38"
                       ><i class="fas fa-user-tie"></i> Manager (1st & 2nd
                       Reports Review)</a
                     >
@@ -990,13 +1005,13 @@ include 'renewal.php';
                 </summary>
                 <ul>
                   <li>
-                    <a href="hmdr_page.php?stage_id=8"
+                    <a href="fsmil_page.php?stage_id=8"
                       ><i class="fas fa-envelope"></i> Query Letters to be
                       Sent</a
                     >
                   </li>
                   <li>
-                    <a href="hmdr_page.php?stage_id=25"
+                    <a href="fsmil_page.php?stage_id=25"
                       ><i class="fas fa-reply"></i> Awaiting Applicant's
                       Feedback</a
                     >
@@ -1006,20 +1021,20 @@ include 'renewal.php';
             </li>
             <li>
               <details>
-                <summary><i class="fas fa-users"></i> Peer Review</summary>
+                <summary><i class="fas fa-users"></i>Approvals</summary>
                 <ul>
                   <li>
-                    <a href="hmdr_page.php?stage_id=19"
+                    <a href="fsmil_page.php?stage_id=19"
                       ><i class="fas fa-industry"></i> Pending GMP</a
                     >
                   </li>
                   <li>
-                    <a href="hmdr_page.php?stage_id=5"
+                    <a href="fsmil_page.php?stage_id=5"
                       ><i class="fas fa-user-check"></i> Pending Peer Review</a
                     >
                   </li>
                   <li>
-                    <a href="hmdr_page.php?stage_id=6"
+                    <a href="fsmil_page.php?stage_id=6"
                       ><i class="fas fa-check-double"></i> Passed Peer Review</a
                     >
                   </li>
@@ -1046,7 +1061,7 @@ include 'renewal.php';
                 <div class="group-cards">
                     <div class="group-row">
                         <div class="stat-card-wrapper card-primary">
-                            <a href="hmdr_page.php?stage_id=all" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=all" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-list-check"></i>
                                     <div class="stat-value"><?php echo number_format($count_all_applications); ?></div>
@@ -1058,7 +1073,7 @@ include 'renewal.php';
                             </div>
                         </div>
                         <div class="stat-card-wrapper card-primary">
-                            <a href="hmdr_page.php?stage_id=under_process" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=under_process" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-cogs"></i>
                                     <div class="stat-value"><?php echo number_format($count_all_applications_under_process); ?></div>
@@ -1070,7 +1085,7 @@ include 'renewal.php';
                             </div>
                         </div>
                         <div class="stat-card-wrapper card-primary">
-                            <a href="hmdr_page.php?stage_id=backlog" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=backlog" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-exclamation-triangle"></i>
                                     <div class="stat-value"><?php echo number_format($count_backlog); ?></div>
@@ -1088,16 +1103,16 @@ include 'renewal.php';
             <!-- SCREENING GROUP (Row 2) - ALL WARNING -->
             <div class="stage-group screening-group">
                 <div class="group-header">
-                    <h4><i class="fas fa-search"></i> Screening</h4>
+                    <h4><i class="fas fa-search"></i> Assessment</h4>
                 </div>
                 <div class="group-cards">
                     <div class="group-row">
                         <div class="stat-card-wrapper card-warning">
-                            <a href="hmdr_page.php?stage_id=1" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=1" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-hourglass-start"></i>
-                                    <div class="stat-value"><?php echo number_format($count_not_assigned); ?></div>
-                                    <div class="stat-label">Pending Screening</div>
+                                    <div class="stat-value"><?php echo number_format($count_pending_assessment); ?></div>
+                                    <div class="stat-label">Pending Assessment</div>
                                 </div>
                                 <div class="status-chip">Step 1</div>
                             </a>
@@ -1106,13 +1121,26 @@ include 'renewal.php';
                             </div>
                         </div>
                         <div class="stat-card-wrapper card-warning">
-                            <a href="hmdr_page.php?stage_id=2" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=2" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-spinner"></i>
-                                    <div class="stat-value"><?php echo number_format($count_screening); ?></div>
-                                    <div class="stat-label">Under Screening</div>
+                                    <div class="stat-value"><?php echo number_format($count_under_assessment); ?></div>
+                                    <div class="stat-label">Under Assessment</div>
                                 </div>
                                 <div class="status-chip">Step 2</div>
+                            </a>
+                            <div class="chart-container">
+                                <canvas id="chart-under-screening"></canvas>
+                            </div>
+                        </div>
+                                                <div class="stat-card-wrapper card-warning">
+                            <a href="fsmil_page.php?stage_id=3" class="stat-card">
+                                <div class="stat-content">
+                                    <i class="fas fa-spinner"></i>
+                                    <div class="stat-value"><?php echo number_format($count_assessed); ?></div>
+                                    <div class="stat-label">Assessed</div>
+                                </div>
+                                <div class="status-chip">Step 3</div>
                             </a>
                             <div class="chart-container">
                                 <canvas id="chart-under-screening"></canvas>
@@ -1122,137 +1150,7 @@ include 'renewal.php';
                 </div>
             </div>
 
-            <!-- ASSESSMENT GROUP (Row 3) - ALL SUCCESS -->
-            <div class="stage-group assessment-group">
-                <div class="group-header">
-                    <h4><i class="fas fa-tasks"></i> Assessment</h4>
-                </div>
-                <div class="group-cards">
-                    <div class="group-row">
-                        <div class="stat-card-wrapper card-success">
-                            <a href="hmdr_page.php?stage_id=7" class="stat-card">
-                                <div class="stat-content">
-                                    <i class="fas fa-hourglass-half"></i>
-                                    <div class="stat-value"><?php echo number_format($count_not_assessed); ?></div>
-                                    <div class="stat-label">Pending Assessment</div>
-                                </div>
-                                <div class="status-chip">Step 3</div>
-                            </a>
-                            <div class="chart-container">
-                                <canvas id="chart-pending-assessment"></canvas>
-                            </div>
-                        </div>
-                        <div class="stat-card-wrapper card-success">
-                            <a href="hmdr_page.php?stage_id=3" class="stat-card">
-                                <div class="stat-content">
-                                    <i class="fas fa-clipboard-check"></i>
-                                    <div class="stat-value"><?php echo number_format($count_pending_first_assessment); ?></div>
-                                    <div class="stat-label">Under 1st Assessment</div>
-                                </div>
-                                <div class="status-chip">Step 4</div>
-                            </a>
-                            <div class="chart-container">
-                                <canvas id="chart-under-1st-assessment"></canvas>
-                            </div>
-                        </div>
-                        <div class="stat-card-wrapper card-success">
-                            <a href="hmdr_page.php?stage_id=35" class="stat-card">
-                                <div class="stat-content">
-                                    <i class="fas fa-clipboard-list"></i>
-                                    <div class="stat-value"><?php echo number_format($count_pending_second_assessment_pending); ?></div>
-                                    <div class="stat-label">Pending 2nd Assessment</div>
-                                </div>
-                                <div class="status-chip">Step 5</div>
-                            </a>
-                            <div class="chart-container">
-                                <canvas id="chart-pending-2nd-assessment"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="group-row">
-                        <div class="stat-card-wrapper card-success">
-                            <a href="hmdr_page.php?stage_id=4" class="stat-card">
-                                <div class="stat-content">
-                                    <i class="fas fa-tasks"></i>
-                                    <div class="stat-value"><?php echo number_format($count_assessment); ?></div>
-                                    <div class="stat-label">Under 2nd Assessment</div>
-                                </div>
-                                <div class="status-chip">Step 6</div>
-                            </a>
-                            <div class="chart-container">
-                                <canvas id="chart-under-2nd-assessment"></canvas>
-                            </div>
-                        </div>
-                        <div class="stat-card-wrapper card-success">
-                            <a href="hmdr_page.php?stage_id=36" class="stat-card">
-                                <div class="stat-content">
-                                    <i class="fas fa-folder-plus"></i>
-                                    <div class="stat-value"><?php echo number_format($count_pending_first_assessment_pending_add_data); ?></div>
-                                    <div class="stat-label">Pending ADD. DATA 1st Assessment</div>
-                                </div>
-                                <div class="status-chip">Step 9</div>
-                            </a>
-                            <div class="chart-container">
-                                <canvas id="chart-pending-add-data-1st"></canvas>
-                            </div>
-                        </div>
-                        <div class="stat-card-wrapper card-success">
-                            <a href="hmdr_page.php?stage_id=21" class="stat-card">
-                                <div class="stat-content">
-                                    <i class="fas fa-file-medical"></i>
-                                    <div class="stat-value"><?php echo number_format($count_pending_first_assessment_add_data); ?></div>
-                                    <div class="stat-label">ADD. DATA, Under 1st Assessment</div>
-                                </div>
-                                <div class="status-chip">Step 11</div>
-                            </a>
-                            <div class="chart-container">
-                                <canvas id="chart-add-data-under-1st"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="group-row">
-                        <div class="stat-card-wrapper card-success">
-                            <a href="hmdr_page.php?stage_id=37" class="stat-card">
-                                <div class="stat-content">
-                                    <i class="fas fa-folder-plus"></i>
-                                    <div class="stat-value"><?php echo number_format($count_pending_second_assessment_pending_add_data); ?></div>
-                                    <div class="stat-label">Pending ADD. DATA 2nd Assessment</div>
-                                </div>
-                                <div class="status-chip">Step 12</div>
-                            </a>
-                            <div class="chart-container">
-                                <canvas id="chart-pending-add-data-2nd"></canvas>
-                            </div>
-                        </div>
-                        <div class="stat-card-wrapper card-success">
-                            <a href="hmdr_page.php?stage_id=22" class="stat-card">
-                                <div class="stat-content">
-                                    <i class="fas fa-file-medical"></i>
-                                    <div class="stat-value"><?php echo number_format($count_pending_second_assessment_add_data); ?></div>
-                                    <div class="stat-label">ADD. DATA, Under 2nd Assessment</div>
-                                </div>
-                                <div class="status-chip">Step 13</div>
-                            </a>
-                            <div class="chart-container">
-                                <canvas id="chart-add-data-under-2nd"></canvas>
-                            </div>
-                        </div>
-                        <div class="stat-card-wrapper card-success">
-                            <a href="hmdr_page.php?stage_id=38" class="stat-card">
-                                <div class="stat-content">
-                                    <i class="fas fa-user-tie"></i>
-                                    <div class="stat-value"><?php echo number_format($count_manager_report_review); ?></div>
-                                    <div class="stat-label">Manager (1st & 2nd Reports Review)</div>
-                                </div>
-                                <div class="status-chip">Step 10</div>
-                            </a>
-                            <div class="chart-container">
-                                <canvas id="chart-manager-review"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
 
             <!-- QUERIES GROUP (Row 4) - ALL SECONDARY -->
             <div class="stage-group queries-group">
@@ -1262,11 +1160,11 @@ include 'renewal.php';
                 <div class="group-cards">
                     <div class="group-row">
                         <div class="stat-card-wrapper card-secondary">
-                            <a href="hmdr_page.php?stage_id=8" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=4" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-envelope"></i>
-                                    <div class="stat-value"><?php echo number_format($count_second_assessment_completed_letter_not_sent); ?></div>
-                                    <div class="stat-label">Query Letters to be Sent</div>
+                                    <div class="stat-value"><?php echo number_format($count_queried); ?></div>
+                                    <div class="stat-label">Queried</div>
                                 </div>
                                 <div class="status-chip">Step 7</div>
                             </a>
@@ -1275,11 +1173,11 @@ include 'renewal.php';
                             </div>
                         </div>
                         <div class="stat-card-wrapper card-secondary">
-                            <a href="hmdr_page.php?stage_id=25" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=5" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-reply"></i>
-                                    <div class="stat-value"><?php echo number_format($count_awaiting_applicant_feedback); ?></div>
-                                    <div class="stat-label">Awaiting Applicant's Feedback</div>
+                                    <div class="stat-value"><?php echo number_format($count_query_letter_sent); ?></div>
+                                    <div class="stat-label">Query Letter Sent</div>
                                 </div>
                                 <div class="status-chip">Step 8</div>
                             </a>
@@ -1290,20 +1188,68 @@ include 'renewal.php';
                     </div>
                 </div>
             </div>
-
-            <!-- PEER REVIEW GROUP (Row 5) - ALL INFO -->
-            <div class="stage-group peer-review-group">
+       <!-- Inspections (Row 2) - ALL WARNING -->
+            <div class="stage-group screening-group">
                 <div class="group-header">
-                    <h4><i class="fas fa-users"></i> Peer Review</h4>
+                    <h4><i class="fas fa-search"></i> Inspection</h4>
                 </div>
                 <div class="group-cards">
                     <div class="group-row">
                         <div class="stat-card-wrapper card-warning">
-                            <a href="hmdr_page.php?stage_id=19" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=12" class="stat-card">
+                                <div class="stat-content">
+                                    <i class="fas fa-hourglass-start"></i>
+                                    <div class="stat-value"><?php echo number_format($count_applied_for_reinspectiont); ?></div>
+                                    <div class="stat-label">Applied for Re-inspection</div>
+                                </div>
+                                <div class="status-chip">Step 1</div>
+                            </a>
+                            <div class="chart-container">
+                                <canvas id="chart-pending-screening"></canvas>
+                            </div>
+                        </div>
+                        <div class="stat-card-wrapper card-warning">
+                            <a href="fsmil_page.php?stage_id=6" class="stat-card">
+                                <div class="stat-content">
+                                    <i class="fas fa-spinner"></i>
+                                    <div class="stat-value"><?php echo number_format($count_inspection_scheduling); ?></div>
+                                    <div class="stat-label">Inspection Scheduling</div>
+                                </div>
+                                <div class="status-chip">Step 2</div>
+                            </a>
+                            <div class="chart-container">
+                                <canvas id="chart-under-screening"></canvas>
+                            </div>
+                        </div>
+                                                <div class="stat-card-wrapper card-warning">
+                            <a href="fsmil_page.php?stage_id=7" class="stat-card">
+                                <div class="stat-content">
+                                    <i class="fas fa-spinner"></i>
+                                    <div class="stat-value"><?php echo number_format($count_inspected); ?></div>
+                                    <div class="stat-label">Inspected</div>
+                                </div>
+                                <div class="status-chip">Step 3</div>
+                            </a>
+                            <div class="chart-container">
+                                <canvas id="chart-under-screening"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- PEER REVIEW GROUP (Row 5) - ALL INFO -->
+            <div class="stage-group peer-review-group">
+                <div class="group-header">
+                    <h4><i class="fas fa-users"></i> ILTC & Approvals</h4>
+                </div>
+                <div class="group-cards">
+                    <div class="group-row">
+                        <div class="stat-card-wrapper card-warning">
+                            <a href="fsmil_page.php?stage_id=19" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-industry"></i>
-                                    <div class="stat-value"><?php echo number_format($count_pending_gmp); ?></div>
-                                    <div class="stat-label">Pending GMP</div>
+                                    <div class="stat-value"><?php echo number_format($count_iltc); ?></div>
+                                    <div class="stat-label">ILTC</div>
                                 </div>
                                 <div class="status-chip">Step 14</div>
                             </a>
@@ -1312,11 +1258,11 @@ include 'renewal.php';
                             </div>
                         </div>
                         <div class="stat-card-wrapper card-warning">
-                            <a href="hmdr_page.php?stage_id=5" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=5" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-user-check"></i>
-                                    <div class="stat-value"><?php echo number_format($count_peer_review); ?></div>
-                                    <div class="stat-label">Pending Peer Review</div>
+                                    <div class="stat-value"><?php echo number_format($count_approved); ?></div>
+                                    <div class="stat-label">Approved</div>
                                 </div>
                                 <div class="status-chip">Step 15</div>
                             </a>
@@ -1325,11 +1271,11 @@ include 'renewal.php';
                             </div>
                         </div>
                         <div class="stat-card-wrapper card-warning">
-                            <a href="hmdr_page.php?stage_id=6" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=6" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-check-double"></i>
-                                    <div class="stat-value"><?php echo number_format($count_under_approval); ?></div>
-                                    <div class="stat-label">Passed Peer Review</div>
+                                    <div class="stat-value"><?php echo number_format($count_not_approved); ?></div>
+                                    <div class="stat-label">Not Approved</div>
                                 </div>
                                 <div class="status-chip">Step 16</div>
                             </a>
@@ -1349,7 +1295,7 @@ include 'renewal.php';
                 <div class="group-cards">
                     <div class="group-row">
                         <div class="stat-card-wrapper card-success">
-                            <a href="hmdr_page.php?stage_id=10" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=10" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-check-circle"></i>
                                     <div class="stat-value"><?php echo number_format($count_registered); ?></div>
@@ -1361,7 +1307,7 @@ include 'renewal.php';
                             </div>
                         </div>
                         <div class="stat-card-wrapper card-success">
-                            <a href="hmdr_page.php?stage_id=14" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=14" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-ban"></i>
                                     <div class="stat-value"><?php echo number_format($count_rejected); ?></div>
@@ -1373,7 +1319,7 @@ include 'renewal.php';
                             </div>
                         </div>
                         <div class="stat-card-wrapper card-success">
-                            <a href="hmdr_page.php?stage_id=30" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=30" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-calendar-times"></i>
                                     <div class="stat-value"><?php echo number_format($count_expired_applications); ?></div>
@@ -1401,7 +1347,7 @@ include 'renewal.php';
                 <div class="group-cards">
                     <div class="group-row">
                         <div class="stat-card-wrapper card-info">
-                            <a href="hmdr_page.php?stage_id=10" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=10" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-check-circle"></i>
                                     <div class="stat-value"><?php echo number_format($count_active); ?></div>
@@ -1413,7 +1359,7 @@ include 'renewal.php';
                             </div>
                         </div>
                         <div class="stat-card-wrapper card-info">
-                            <a href="hmdr_page.php?stage_id=renewal" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=renewal" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-sync-alt"></i>
                                     <div class="stat-value"><?php echo number_format($count_all_applications_renewal); ?></div>
@@ -1440,7 +1386,7 @@ include 'renewal.php';
                 <div class="group-cards">
                     <div class="group-row">
                         <div class="stat-card-wrapper card-primary">
-                            <a href="hmdr_page.php?stage_id=variation" class="stat-card">
+                            <a href="fsmil_page.php?stage_id=variation" class="stat-card">
                                 <div class="stat-content">
                                     <i class="fas fa-list-check"></i>
                                     <div class="stat-value"><?php echo number_format($count_all_applications_variation); ?></div>
@@ -2014,9 +1960,3 @@ include 'renewal.php';
     };
   </script>
 </body>
-
-<?php }
-else {
-    echo "Unauthorized access.";
-}
-?>
