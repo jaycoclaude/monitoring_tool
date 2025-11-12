@@ -1,480 +1,374 @@
 <?php
+require_once '../includes/auth.php';
 require_once 'data.php';
-$currentUser = getCurrentUser();
-$allTasks   = getTasks();
 
-// ---------- FILTER ----------
-$tab        = $_GET['tab'] ?? 'all';
-$searchTerm = $_GET['search'] ?? '';
-
-if ($tab === 'received') {
-  $tasks = array_filter($allTasks, fn($t) => $t['to'] === $currentUser);
-} elseif ($tab === 'sent') {
-  $tasks = array_filter($allTasks, fn($t) => $t['from'] === $currentUser);
-} else {
-  $tasks = $allTasks;
+$current_user_id = $_SESSION['user_id'];
+if (!$current_user_id) {
+    header('Location: ../index.php');
+    exit();
 }
+
+$tasks = getTasks($current_user_id);
+$searchTerm = trim($_GET['search'] ?? '');
+
+$db = getDB();
+$stmt = $db->prepare("SELECT staff_id, staff_names, staff_email FROM tbl_staff WHERE user_id = :user_id AND staff_status = 1 LIMIT 1");
+$stmt->execute([':user_id' => $current_user_id]);
+$staff = $stmt->fetch(PDO::FETCH_ASSOC);
+$current_staff_name = $staff['staff_names'] ?? '';
+$current_staff_email = $staff['staff_email'] ?? $_SESSION['staff_email'] ?? '';
+
 if ($searchTerm !== '') {
-  $tasks = searchTasks($searchTerm, $tasks);
+    $tasks = array_filter($tasks, function ($t) use ($searchTerm) {
+        return stripos($t['title'], $searchTerm) !== false ||
+            stripos($t['description'], $searchTerm) !== false ||
+            stripos($t['assigned_by_name'], $searchTerm) !== false ||
+            stripos($t['assigned_to_name'], $searchTerm) !== false;
+    });
 }
-$tasks = array_values($tasks);
+
+$createdTasks   = array_filter($tasks, fn($t) => $t['assigned_by_email'] === $current_staff_email);
+$inboxTasks     = array_filter($tasks, fn($t) => $t['assigned_to_name'] === $current_staff_name && $t['status'] != 'completed');
+$completedTasks = array_filter($tasks, fn($t) =>
+    $t['status'] == 'completed' &&
+    ($t['assigned_to_name'] === $current_staff_name || $t['assigned_by_email'] === $current_staff_email)
+);
+$inboxTasks = array_filter( $tasks,    fn($t) =>    $t['assigned_to_name'] === $current_staff_name &&        in_array($t['status'], ['pending', 'in_progress', 'review'])
+);
+
+$tasksPerPage = 6;
+$createdPage   = max(1, intval($_GET['created_page'] ?? 1));
+$inboxPage     = max(1, intval($_GET['inbox_page'] ?? 1));
+$completedPage = max(1, intval($_GET['completed_page'] ?? 1));
+
+function paginateTasks($tasks, $tasksPerPage, $currentPage)
+{
+    $totalTasks = count($tasks);
+    $totalPages = ceil($totalTasks / $tasksPerPage);
+    $start = ($currentPage - 1) * $tasksPerPage;
+    return [array_slice($tasks, $start, $tasksPerPage), $totalPages];
+}
+
+list($createdTasksPage, $createdPages)     = paginateTasks($createdTasks, $tasksPerPage, $createdPage);
+list($inboxTasksPage, $inboxPages)         = paginateTasks($inboxTasks, $tasksPerPage, $inboxPage);
+list($completedTasksPage, $completedPages) = paginateTasks($completedTasks, $tasksPerPage, $completedPage);
+
+require_once 'header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
 
-<head>
-  <meta charset="utf-8">
-  <title>TaskFlow – My Assignments</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Bootstrap 3 (kept for compatibility) -->
-  <link rel="stylesheet"
-    href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+<div class="page-header">
+    <h1 class="page-title"><i class="fas fa-tasks"></i> My Assignments</h1>
+    <div class="action-buttons">
+        <a href="create.php" class="btn btn-success"><i class="fas fa-plus"></i> New Assignment</a>
+    </div>
+</div>
 
-  <!-- Font Awesome -->
-  <link rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<div class="search-form">
+    <form method="GET" id="searchForm">
+        <input type="text" name="search" placeholder="Search assignments by title, description, or assignee..."
+            value="<?= htmlspecialchars($searchTerm) ?>"
+            id="searchInput">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Search</button>
+        <?php if ($searchTerm !== ''): ?>
+            <a href="index.php" class="btn btn-ghost"><i class="fas fa-times"></i> Clear</a>
+        <?php endif; ?>
+    </form>
+</div>
 
-  <!-- Google Font -->
-  <link href="https://fonts.googleapis.com/css?family=Nunito:400,600,700"
-    rel="stylesheet">
-
-  <style>
-    /* -------------------------------------------------
-           GLOBAL RESET & TYPOGRAPHY
-        ------------------------------------------------- */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Nunito', sans-serif;
-      background: #f5f7f9;
-      color: #333;
-      line-height: 1.6;
-    }
-
-    /* -------------------------------------------------
-           TOP-BAR (exact copy from MA-Monitoring)
-        ------------------------------------------------- */
-    .header {
-      position: sticky;
-      top: 0;
-      z-index: 30;
-      backdrop-filter: blur(4px);
-      background: rgba(255, 255, 255, .8);
-      border-bottom: 1px solid #e7eef6;
-      box-shadow: 0 1px 10px rgba(0, 0, 0, .04);
-    }
-
-    .header-content {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 24px;
-    }
-
-    html,
-    body {
-      height: 100%;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .dashboard-container {
-      flex: 1;
-      /* This ensures main content expands to fill space */
-    }
-
-    .footer {
-      margin-top: auto;
-      /* Pushes footer to bottom */
-      padding: 16px 24px;
-      background: #0f5e8a;
-      color: #fff;
-      text-align: center;
-      font-size: 0.9rem;
-    }
-
-    .branding {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .logo {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: #0f5e8a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-weight: 600;
-      font-size: 16px;
-    }
-
-    .brand-text h1 {
-      font-size: 14px;
-      font-weight: 600;
-      color: #1a202c;
-    }
-
-    .brand-text p {
-      font-size: 11px;
-      color: #6b7a86;
-      margin-top: -2px;
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .icon-button {
-      position: relative;
-      padding: 8px;
-      border-radius: 50%;
-      background: none;
-      border: none;
-      cursor: pointer;
-      transition: background .2s;
-    }
-
-    .icon-button:hover {
-      background: rgba(0, 0, 0, .05);
-    }
-
-    .notification-badge {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      width: 8px;
-      height: 8px;
-      background: #e53e3e;
-      border-radius: 50%;
-    }
-
-    .user-profile {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: #fff;
-      border: 1px solid #e8f1f8;
-      padding: 6px 12px;
-      border-radius: 8px;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
-    }
-
-    .user-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: #f0f6fb;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #0f5e8a;
-    }
-
-    .user-name {
-      font-size: 12px;
-      font-weight: 500;
-      display: none;
-    }
-
-    @media (min-width:640px) {
-      .user-name {
-        display: block;
-      }
-    }
-
-    /* -------------------------------------------------
-           MAIN CONTAINER
-        ------------------------------------------------- */
-    .dashboard-container {
-      max-width: 1800px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 20px;
-      padding-bottom: 12px;
-      border-bottom: 2px solid #e7eef6;
-    }
-
-    .page-title {
-      font-size: 24px;
-      font-weight: 600;
-      color: #1a202c;
-    }
-
-    .search-form {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .search-form input {
-      padding: 8px 12px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      min-width: 250px;
-    }
-
-    .btn {
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-weight: 600;
-      text-decoration: none;
-      display: inline-block;
-      cursor: pointer;
-      transition: all .2s;
-    }
-
-    .btn-primary {
-      background: #0f5e8a;
-      color: #fff;
-      border: none;
-    }
-
-    .btn-primary:hover {
-      background: #0d4f70;
-    }
-
-    .btn-ghost {
-      background: transparent;
-      color: #0f5e8a;
-      border: 1px solid #0f5e8a;
-    }
-
-    .btn-ghost:hover {
-      background: #e6f2fa;
-      color: #0d4f70;
-    }
-
-    .btn-success {
-      background: #1e8741;
-      color: #fff;
-      border: none;
-    }
-
-    .btn-success:hover {
-      background: #1a6d36;
-    }
-
-    /* -------------------------------------------------
-           CARDS GRID (same look as MA-Monitoring stat-cards)
-        ------------------------------------------------- */
-    .cards-grid {
-      display: grid;
-      gap: 20px;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    }
-
-    .card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, .08);
-      border: 1px solid #e7eef6;
-      transition: all .3s;
-      cursor: pointer;
-    }
-
-    .card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, .12);
-    }
-
-    .card h3 {
-      margin-bottom: 8px;
-      font-size: 1.1rem;
-      color: #1a202c;
-    }
-
-    .card p {
-      font-size: 0.9rem;
-      color: #6b7a86;
-      margin-bottom: 12px;
-    }
-
-    .meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      font-size: 0.8rem;
-      margin-bottom: 12px;
-    }
-
-    .meta-item {
-      color: #6b7a86;
-    }
-
-    .status {
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-weight: 600;
-      font-size: 0.75rem;
-    }
-
-    .status.pending {
-      background: #fff5e6;
-      color: #cc6d00;
-    }
-
-    .status.in-progress {
-      background: #e6f0ff;
-      color: #003087;
-    }
-
-    .status.completed {
-      background: #e6ffe6;
-      color: #1e8741;
-    }
-
-    .card-actions {
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-    }
-
-    /* -------------------------------------------------
-           FOOTER
-        ------------------------------------------------- */
-    .footer {
-      margin-top: 40px;
-      padding: 16px 24px;
-      background: #0f5e8a;
-      color: #fff;
-      text-align: center;
-      font-size: 0.9rem;
-    }
-
-    /* -------------------------------------------------
-           RESPONSIVE
-        ------------------------------------------------- */
-    @media (max-width:900px) {
-      .page-header {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
-      .search-form input {
-        min-width: 100%;
-      }
-    }
-  </style>
-</head>
-
-<body>
-
-  <!------------------- TOP-BAR ------------------->
-  <header class="header">
-    <div class="header-content">
-      <div class="branding">
-        <div class="logo">H</div>
-        <div class="brand-text">
-          <h1>TaskFlow</h1>
-          <p>Assignment Management</p>
-        </div>
-      </div>
-      <div class="header-actions">
-        <button class="icon-button" title="Notifications">
-          <i class="fas fa-bell"></i>
-          <span class="notification-badge"></span>
+<div class="tabs-container">
+    <div class="tabs-line">
+        <button class="tab-link active" onclick="openTab(event, 'Created')" id="createdTab">
+            <i class="fas fa-paper-plane"></i> Created by Me
+            <span class="tab-count pulse"><?= count($createdTasks) ?></span>
         </button>
-        <div class="user-profile">
-          <div class="user-avatar"><i class="fas fa-user"></i></div>
-          <div class="user-name"><?php echo htmlspecialchars($currentUser); ?></div>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <!------------------- MAIN CONTENT ------------------->
-  <div class="dashboard-container">
-
-    <div class="page-header">
-      <h1 class="page-title">My Assignments</h1>
-
-      <div class="search-form">
-        <form method="GET" action="">
-          <input type="hidden" name="tab" value="<?php echo htmlspecialchars($tab); ?>">
-          <input type="text" name="search"
-            placeholder="Search assignments..."
-            value="<?php echo htmlspecialchars($searchTerm); ?>">
-          <button type="submit" class="btn btn-primary">Search</button>
-          <?php if ($searchTerm !== ''): ?>
-            <a href="?tab=<?php echo htmlspecialchars($tab); ?>"
-              class="btn btn-ghost">Clear</a>
-          <?php endif; ?>
-        </form>
-
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-primary"
-            onclick="personalReport(document.querySelector('input[name=search]').value.trim())">
-            Generate Personal Report
-          </button>
-          <a href="create.php" class="btn btn-success">+ New Assignment</a>
-        </div>
-      </div>
+        <button class="tab-link" onclick="openTab(event, 'Inbox')" id="inboxTab">
+            <i class="fas fa-inbox"></i> Assigned to Me
+            <span class="tab-count"><?= count($inboxTasks) ?></span>
+        </button>
+        <button class="tab-link" onclick="openTab(event, 'Completed')" id="completedTab">
+            <i class="fas fa-check-circle"></i> Completed by Me
+            <span class="tab-count"><?= count($completedTasks) ?></span>
+        </button>
     </div>
 
-    <!-- ------------------- CARD GRID ------------------- -->
-    <div class="cards-grid">
-      <?php if (empty($tasks)): ?>
-        <div style="grid-column:1/-1;text-align:center;padding:40px;">
-          <h3>No assignments found</h3>
+    <div id="Created" class="tab-content" style="display:block;">
+        <div class="cards-grid">
+            <?php if (empty($createdTasksPage)): ?>
+                <div class="empty-state">
+                    <i class="fas fa-paper-plane"></i>
+                    <h3>No assignments created yet</h3>
+                    <p>You haven't created any assignments. </p>
+                    <!-- <a href="create.php" class="btn btn-primary"><i class="fas fa-plus"></i> Create New Assignment</a> -->
+                </div>
+            <?php else:
+                foreach ($createdTasksPage as $task):
+                    echo renderTaskCard($task);
+                endforeach;
+            endif; ?>
         </div>
-      <?php else: ?>
-        <?php foreach ($tasks as $task): ?>
-          <div class="card"
-            onclick="location.href='view.php?id=<?php echo $task['id']; ?>'">
-            <h3><?php echo htmlspecialchars($task['title']); ?></h3>
-            <p><?php echo htmlspecialchars($task['description']); ?></p>
-
-            <div class="meta">
-              <span class="meta-item">Due: <?php echo formatDate($task['dueDate']); ?></span>
-              <span class="meta-item">From: <?php echo htmlspecialchars($task['from']); ?></span>
-              <span class="meta-item">To: <?php echo htmlspecialchars($task['to']); ?></span>
-              <span class="meta-item"><?php echo getPriorityBadge($task['priority']); ?></span>
-              <span class="status <?php echo getStatusClass($task['status']); ?>">
-                <?php echo ucfirst(str_replace('-', ' ', $task['status'])); ?>
-              </span>
-            </div>
-
-            <div class="card-actions">
-              <a href="view.php?id=<?php echo $task['id']; ?>" class="btn btn-primary">View</a>
-              <button class="btn btn-ghost"
-                onclick="event.stopPropagation();personalReport('<?php echo htmlspecialchars($task['to']); ?>')">
-                Report
-              </button>
-            </div>
-          </div>
-        <?php endforeach; ?>
-      <?php endif; ?>
+        <?php renderPagination('created', $createdPages, $createdPage, $searchTerm); ?>
     </div>
 
-  </div>
+    <div id="Inbox" class="tab-content" style="display:none;">
+        <div class="cards-grid">
+            <?php if (empty($inboxTasksPage)): ?>
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <h3>No assignments in your inbox</h3>
+                    <p>You don't have any pending assignments. When someone assigns you a task, it will appear here for you to work on.</p>
+                </div>
+            <?php else:
+                foreach ($inboxTasksPage as $task):
+                    echo renderTaskCard($task);
+                endforeach;
+            endif; ?>
+        </div>
+        <?php renderPagination('inbox', $inboxPages, $inboxPage, $searchTerm); ?>
+    </div>
 
-  <!------------------- FOOTER ------------------->
-  <footer class="footer">
-    © <?php echo date('Y'); ?> TaskFlow – All rights reserved.
-  </footer>
+    <div id="Completed" class="tab-content" style="display:none;">
+        <div style="margin-bottom: 20px;">
+            <a href="completed_tasks_report.php" target="_blank" class="export-btn">
+                <i class="fas fa-file-pdf"></i> Export Report
+            </a>
+        </div>
+        <div class="cards-grid">
+            <?php if (empty($completedTasksPage)): ?>
+                <div class="empty-state">
+                    <i class="fas fa-check-circle"></i>
+                    <h3>No completed assignments</h3>
+                    <p>You haven't completed any assignments yet. Complete tasks assigned to you to track your progress and achievements.</p>
+                </div>
+            <?php else:
+                foreach ($completedTasksPage as $task):
+                    echo renderTaskCard($task);
+                endforeach;
+            endif; ?>
+        </div>
+        <?php renderPagination('completed', $completedPages, $completedPage, $searchTerm); ?>
+    </div>
+</div>
 
-</body>
+<?php
+function renderTaskCard($task)
+{
+    global $current_staff_name;
+    $assignedBy = ($task['assigned_by_name'] === $current_staff_name) ? 'Me' : htmlspecialchars($task['assigned_by_name']);
+    $assignedTo = ($task['assigned_to_name'] === $current_staff_name) ? 'Me' : htmlspecialchars($task['assigned_to_name']);
+    $attachments = !empty($task['attachments']) ? implode(', ', $task['attachments']) : 'None';
 
-</html>
+    $statusClass = str_replace('_', '-', $task['status']);
+    $statusText  = ucfirst(str_replace('_', ' ', $task['status']));
+
+    // Priority array: [border-class, badge-class, badge-text, icon]
+    $priorityClass = match ($task['priority']) {
+        'low' => ['border-low', 'priority-low', 'Low', '<i class="fas fa-arrow-down"></i>'],
+        'medium' => ['border-medium', 'priority-medium', 'Medium', '<i class="fas fa-arrow-right"></i>'],
+        'high' => ['border-high', 'priority-high', 'High', '<i class="fas fa-arrow-up"></i>'],
+        'urgent' => ['border-urgent', 'priority-urgent', 'Urgent', '<i class="fas fa-exclamation-triangle"></i>'],
+        default => ['', 'priority-low', 'N/A', '<i class="fas fa-question"></i>']
+    };
+
+    $statusClass = match ($task['status']) {
+        'pending'      => 'pending',
+        'in_progress'  => 'in-progress',
+        'completed'    => 'completed',
+        'review'       => 'review',   // <-- NEW
+        default        => 'pending',
+    };
+
+    $statusText = match ($task['status']) {
+        'review' => 'Under Review',
+        default  => ucfirst(str_replace('_', ' ', $task['status']))
+    };
+
+    // Due date handling
+    $dueDateHtml = '';
+    if (!empty($task['due_date'])) {
+        $dueDate = date('M d, Y', strtotime($task['due_date']));
+        $isOverdue = strtotime($task['due_date']) < time() && $task['status'] !== 'completed';
+        $dueDateClass = $isOverdue ? 'overdue' : '';
+        $dueDateIcon = $isOverdue ? 'fas fa-exclamation-triangle' : 'fas fa-clock';
+        $dueDateHtml = "<div class='due-date $dueDateClass'><i class='$dueDateIcon'></i> <strong>Due:</strong> $dueDate</div>";
+    }
+
+    $actionButtons = [];
+    $actionButtons[] = "<a href='view.php?id={$task['task_id']}' class='view-btn'><i class='fas fa-eye'></i> View Details</a>";
+    if ($task['assigned_by_name'] === $current_staff_name) {
+        $actionButtons[] = "<a href='edit.php?id={$task['task_id']}' class='view-btn edit'><i class='fas fa-edit'></i> Edit</a>";
+        $actionButtons[] = "<a href='delete.php?id={$task['task_id']}' onclick=\"return confirm('Are you sure you want to delete this assignment?');\" class='view-btn delete'><i class='fas fa-trash'></i> Delete</a>";
+    }
+
+    $buttonsHtml = '<div class="card-actions">' . implode('', $actionButtons) . '</div>';
+
+    return "
+    <div class='card {$priorityClass[0]}'>
+    <div class='card-header'>
+        <h3>" . htmlspecialchars($task['title']) . "</h3>
+        <div style='display:flex; gap:6px; flex-wrap:wrap;'>
+            <span class='status {$statusClass}'>
+                <i class='fas fa-spinner'></i> {$statusText}
+            </span>
+            <span class='priority-badge {$priorityClass[1]}'>
+                {$priorityClass[3]} {$priorityClass[2]}
+            </span>
+        </div>
+    </div>
+
+    <div class='card-meta'>
+        <div><i class='fas fa-user-check'></i> <strong>By:</strong> {$assignedBy}</div>
+        <div><i class='fas fa-user'></i> <strong>To:</strong> {$assignedTo}</div>
+        <div><i class='fas fa-calendar-alt'></i> <strong>Created:</strong> " . date('M d, Y', strtotime($task['created_at'])) . "</div>
+    </div>
+
+    {$dueDateHtml}
+
+    <div>
+        <div class='description-label'>Description</div>
+        <div class='description'>" . nl2br(htmlspecialchars($task['description'])) . "</div>
+    </div>
+
+    <div class='attachments'><i class='fas fa-paperclip'></i> <strong>Attachments:</strong> {$attachments}</div>
+
+    {$buttonsHtml}
+</div>
+
+";
+}
+
+function renderPagination($tab, $totalPages, $currentPage, $searchTerm)
+{
+    if ($totalPages <= 1) return;
+    echo '<div class="pagination">';
+    // Previous button
+    if ($currentPage > 1) {
+        $prevPage = $currentPage - 1;
+        $searchParam = $searchTerm !== '' ? '&search=' . urlencode($searchTerm) : '';
+        echo "<a href='?{$tab}_page=$prevPage$searchParam' title='Previous Page'><i class='fas fa-chevron-left'></i></a>";
+    }
+
+    // Calculate page range to show
+    $startPage = max(1, $currentPage - 2);
+    $endPage = min($totalPages, $currentPage + 2);
+
+    for ($i = $startPage; $i <= $endPage; $i++) {
+        $active = $i == $currentPage ? 'active' : '';
+        $searchParam = $searchTerm !== '' ? '&search=' . urlencode($searchTerm) : '';
+        echo "<a class='$active' href='?{$tab}_page=$i$searchParam'>$i</a>";
+    }
+
+    // Next button
+    if ($currentPage < $totalPages) {
+        $nextPage = $currentPage + 1;
+        $searchParam = $searchTerm !== '' ? '&search=' . urlencode($searchTerm) : '';
+        echo "<a href='?{$tab}_page=$nextPage$searchParam' title='Next Page'><i class='fas fa-chevron-right'></i></a>";
+    }
+    echo '</div>';
+}
+?>
+
+<script>
+    function openTab(evt, tabName) {
+        // Add loading animation to tab content
+        const tabContent = document.getElementById(tabName);
+        tabContent.style.opacity = '0.7';
+
+        // Hide all tab contents
+        const contents = document.querySelectorAll('.tab-content');
+        contents.forEach(c => {
+            c.style.display = 'none';
+            c.style.opacity = '0';
+        });
+
+        // Remove active class from all tabs
+        const links = document.querySelectorAll('.tab-link');
+        links.forEach(l => l.classList.remove('active'));
+
+        // Show the selected tab content and mark tab as active
+        setTimeout(() => {
+            tabContent.style.display = 'block';
+            setTimeout(() => {
+                tabContent.style.opacity = '1';
+            }, 50);
+        }, 200);
+
+        evt.currentTarget.classList.add('active');
+
+        // Update URL without reloading page
+        const url = new URL(window.location);
+        url.searchParams.set('tab', tabName.toLowerCase());
+        window.history.replaceState({}, '', url);
+    }
+
+    // Preserve active tab on page reload
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const activeTab = urlParams.get('tab');
+
+        if (activeTab) {
+            const tabName = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
+            const tabButton = document.getElementById(tabName + 'Tab');
+            if (tabButton) {
+                tabButton.click();
+            }
+        }
+
+        // Add loading state to buttons on click
+        const buttons = document.querySelectorAll('.view-btn, .btn');
+        buttons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                if (this.getAttribute('href') && !this.classList.contains('disabled')) {
+                    this.classList.add('disabled');
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<span class="loading"></span> Loading...';
+
+                    // Revert after 3 seconds if still on page
+                    setTimeout(() => {
+                        if (this.classList.contains('disabled')) {
+                            this.classList.remove('disabled');
+                            this.innerHTML = originalText;
+                        }
+                    }, 3000);
+                }
+            });
+        });
+
+        // Focus search input on page load if it's empty
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput && searchInput.value === '') {
+            setTimeout(() => {
+                searchInput.focus();
+            }, 500);
+        }
+
+        // Add smooth scrolling to pagination
+        const paginationLinks = document.querySelectorAll('.pagination a');
+        paginationLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const href = this.getAttribute('href');
+
+                // Add fade out animation
+                document.querySelector('.cards-grid').style.opacity = '0.7';
+                document.querySelector('.pagination').style.opacity = '0.7';
+
+                setTimeout(() => {
+                    window.location.href = href;
+                }, 300);
+            });
+        });
+
+        // Add hover effects to cards with delay
+        const cards = document.querySelectorAll('.card');
+        cards.forEach((card, index) => {
+            card.style.animationDelay = `${index * 0.1}s`;
+        });
+    });
+</script>
+
+<?php require_once 'footer.php'; ?>

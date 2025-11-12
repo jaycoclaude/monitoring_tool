@@ -1,96 +1,182 @@
 <?php
+require_once '../includes/auth.php';
 require_once 'data.php';
+$current_staff = $_SESSION['user_id'];
 
-// Handle form submission
+$staff_list = getAllStaff();
+
+// === HANDLE FORM SUBMISSION ===
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Handle file uploads
-    $uploadedFiles = [];
-    if (isset($_FILES['attachments']) && !empty($_FILES['attachments']['name'][0])) {
-        $uploadDir = 'uploads/';
-        
-        // Create upload directory if it doesn't exist
-        if (!file_exists($uploadDir)) {
-            mkdir($uploadDir, 0777, true);
-        }
-        
-        // Handle multiple file uploads
-        foreach ($_FILES['attachments']['name'] as $key => $filename) {
-            if ($_FILES['attachments']['error'][$key] === UPLOAD_ERR_OK) {
-                $tempName = $_FILES['attachments']['tmp_name'][$key];
-                $targetFile = $uploadDir . time() . '_' . basename($filename);
-                
-                // Validate file type and move uploaded file
-                $allowedTypes = ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'zip'];
-                $fileExt = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-                
-                if (in_array($fileExt, $allowedTypes)) {
-                    if (move_uploaded_file($tempName, $targetFile)) {
-                        $uploadedFiles[] = basename($targetFile);
+    $uploaded = [];
+    if (!empty($_FILES['attachments']['name'][0])) {
+        $dir = 'uploads/';
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        foreach ($_FILES['attachments']['name'] as $k => $name) {
+            if ($_FILES['attachments']['error'][$k] === 0) {
+                $ext = pathinfo($name, PATHINFO_EXTENSION);
+                if (in_array(strtolower($ext), ['pdf','doc','docx','jpg','png','zip'])) {
+                    $file = time() . "_$k.$ext";
+                    if (move_uploaded_file($_FILES['attachments']['tmp_name'][$k], $dir . $file)) {
+                        $uploaded[] = $file;
                     }
                 }
             }
         }
     }
-    
-    $newTask = [
-        'title' => $_POST['title'],
+
+    $taskAdded = addTask([
+        'title'       => $_POST['title'],
         'description' => $_POST['description'],
-        'from' => getCurrentUser(),
-        'to' => $_POST['assignee'],
-        'status' => 'pending',
-        'dueDate' => $_POST['dueDate'],
-        'createdAt' => date('Y-m-d'),
-        'attachments' => $uploadedFiles,
-        'priority' => $_POST['priority']
-    ];
-    
-    addTask($newTask);
-    header('Location: index.php');
+        'assigned_by' => $current_staff,
+        'assigned_to' => $_POST['assignee'],
+        'status'      => 'pending',
+        'priority'    => $_POST['priority'],
+        'due_date'    => $_POST['due_date'],
+        'attachments' => $uploaded
+    ]);
+
+    if ($taskAdded) {
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Task created successfully!'];
+    } else {
+        $_SESSION['flash'] = ['type' => 'error', 'msg' => 'Failed to create task. Please try again.'];
+    }
+
+    // Stay on this page to show toast
+    header('Location: create.php');
     exit;
 }
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Create Assignment – TaskFlow</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="assets/style.css">
-</head>
-<body>
-<main class="container">
-  <div class="page-header">
-    <h1 class="page-title">Create New Assignment</h1>
-    <a href="index.php" class="btn ghost">Back</a>
-  </div>
-  <div class="form-container">
-    <form method="POST" id="assignmentForm" enctype="multipart/form-data">
-      <div class="form-group full-width"><label>Title *</label><input name="title" class="form-control" required></div>
-      <div class="form-group full-width"><label>Description *</label><textarea name="description" class="form-control" required></textarea></div>
-      <div class="form-group"><label>Assign To *</label>
-        <select name="assignee" class="form-control" required>
-          <option value="">Select...</option>
-          <option>Bob Developer</option><option>Charlie Manager</option><option>David Designer</option><option>Eva Tester</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Due Date *</label><input type="date" name="dueDate" class="form-control" required></div>
-      <div class="form-group"><label>Priority</label>
-        <select name="priority" class="form-control"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option>
-        </select>
-      </div>
-      <div class="form-group full-width">
-        <label>Attachments</label>
-        <input type="file" name="attachments[]" class="form-control" multiple accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip">
-        <small style="color:#666;font-size:12px;">Allowed formats: PDF, DOC, DOCX, TXT, JPG, PNG, ZIP</small>
-      </div>
-      <div class="form-group full-width">
-        <button type="submit" class="btn" style="width:100%;padding:12px;">Create Assignment</button>
-      </div>
+<?php require_once 'header.php'; ?>
+
+<!-- Font Awesome + Select2 + SF Pro -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+
+
+<div class="page-header">
+    <h1 class="page-title"><i class="fa-solid fa-clipboard-list"></i> Create Assignment</h1>
+    <a href="index.php" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="form-container">
+
+    <!-- TOAST MESSAGE -->
+    <?php if (isset($_SESSION['flash'])): 
+        $flash = $_SESSION['flash'];
+        unset($_SESSION['flash']);
+    ?>
+    <div class="toast toast-<?= $flash['type'] ?>" id="toast">
+        <i class="fas <?= $flash['type'] === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle' ?>"></i>
+        <span><?= htmlspecialchars($flash['msg']) ?></span>
+        <button type="button" class="toast-close" id="close-toast">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <?php endif; ?>
+
+    <form method="POST" enctype="multipart/form-data" class="form-grid">
+        <div class="form-group">
+            <label><i class="fa-solid fa-heading"></i> Title *</label>
+            <input type="text" name="title" placeholder="Enter task title" required>
+        </div>
+
+        <div class="form-group">
+            <label><i class="fa-solid fa-user-check"></i> Assign To *</label>
+            <select name="assignee" class="select2" required>
+                <option value="">Select staff...</option>
+                <?php foreach ($staff_list as $s): ?>
+                    <option value="<?= $s['staff_id'] ?>"><?= htmlspecialchars($s['staff_names']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label><i class="fa-solid fa-calendar-day"></i> Due Date *</label>
+            <input type="date" name="due_date" required>
+        </div>
+
+        <div class="form-group">
+            <label><i class="fa-solid fa-flag"></i> Priority</label>
+            <select name="priority" class="select2">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+            </select>
+        </div>
+
+        <div class="form-group full-width">
+            <label><i class="fa-solid fa-align-left"></i> Description *</label>
+            <textarea name="description" placeholder="Describe the task..." required rows="4"></textarea>
+        </div>
+
+        <div class="form-group full-width">
+            <label><i class="fa-solid fa-paperclip"></i> Attachments</label>
+            <input type="file" name="attachments[]" multiple accept=".pdf,.doc,.docx,.jpg,.png,.zip">
+            <small><i class="fa-solid fa-file"></i> Accepted: PDF, DOC, JPG, PNG, ZIP</small>
+        </div>
+
+        <div class="form-group full-width" style="text-align:right;">
+            <button type="submit" class="btn-submit"><i class="fa-solid fa-plus-circle"></i> Create Assignment</button>
+        </div>
     </form>
-  </div>
-</main>
+</div>
 
-<script src="assets/script.js"></script>
-</body>
-</html>
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
+<script>
+$(document).ready(function() {
+    // === SELECT2 WITH ICONS & SEARCH CONTROL ===
+    $('.select2').each(function() {
+        const $select = $(this);
+        const isAssignee = $select.attr('name') === 'assignee';
+
+        $select.select2({
+            width: '100%',
+            placeholder: isAssignee ? 'Select staff...' : 'Select priority',
+            allowClear: true,
+            minimumResultsForSearch: isAssignee ? 1 : Infinity,
+            dropdownParent: $('body'),
+            templateResult: function(state) {
+                if (!state.id) return state.text;
+                let icon = isAssignee ? 'fa-user' :
+                           state.id === 'low' ? 'fa-arrow-down' :
+                           state.id === 'medium' ? 'fa-equals' :
+                           state.id === 'high' ? 'fa-arrow-up' : 'fa-exclamation-triangle';
+                return $(`
+                    <span style="display:flex;align-items:center;gap:12px;">
+                        <i class="fas ${icon} select2-icon"></i>
+                        <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            ${state.text}
+                        </span>
+                    </span>
+                `);
+            },
+            templateSelection: s => s.id ? s.text : $select.data('placeholder'),
+            escapeMarkup: m => m
+        });
+    });
+
+    // === PREVENT PAST DATES ===
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelector('input[name="due_date"]').setAttribute('min', today);
+
+    // === TOAST: CLOSE → REDIRECT ===
+    $('#close-toast').on('click', function() {
+        window.location.href = 'index.php';
+    });
+
+    // === AUTO-REDIRECT AFTER 4s ===
+    setTimeout(function() {
+        if (document.getElementById('toast')) {
+            window.location.href = 'index.php';
+        }
+    }, 4000);
+});
+</script>
+
+<?php require_once 'footer.php'; ?>

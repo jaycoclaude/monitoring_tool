@@ -1,0 +1,17 @@
+{
+    "name": "espoir-mupenzi/tm",
+    "autoload": {
+        "psr-4": {
+            "EspoirMupenzi\\Tm\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "iyesiam",
+            "email": "zawahwi10@gmail.com"
+        }
+    ],
+    "require": {
+        "mpdf/mpdf": "^8.2"
+    }
+}
