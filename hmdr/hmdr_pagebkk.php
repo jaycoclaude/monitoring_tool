@@ -13,225 +13,6 @@ $stage_id = $_GET['stage_id'] ?? '';
 $user_id = $_SESSION['user_id'];
 $access = $_SESSION['user_access'];
 
-// Handle Excel Export
-if (isset($_GET['export']) && $_GET['export'] == 'xls') {
-    exportToExcel($pdo, $stage_id, $_GET);
-    exit();
-}
-
-// Excel Export Function
-function exportToExcel($pdo, $stage_id, $params) {
-    // Set headers for Excel file download
-    header('Content-Type: application/vnd.ms-excel; charset=utf-8');
-    header('Content-Disposition: attachment;filename="applications_' . date('Y-m-d') . '.xls"');
-    header('Cache-Control: max-age=0');
-    
-    // Get all data without pagination for export
-    $applications = getAllApplicationsForExport($pdo, $stage_id, $params);
-    
-    // Start output
-    echo "<html xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\" xmlns=\"http://www.w3.org/TR/REC-html40\">\n";
-    echo "<head>\n";
-    echo "<meta charset=\"UTF-8\">\n";
-    echo "<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Applications</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->\n";
-    echo "</head>\n";
-    echo "<body>\n";
-    echo "<table border=\"1\">\n";
-    
-    // Output Excel headers
-    echo "<tr>\n";
-    echo "<th>No.</th>\n";
-    echo "<th>Reference No</th>\n";
-    echo "<th>Brand Name</th>\n";
-    echo "<th>INN</th>\n";
-    echo "<th>Strength</th>\n";
-    echo "<th>Dosage Form</th>\n";
-    echo "<th>Manufacturer</th>\n";
-    echo "<th>Assessment Pathway</th>\n";
-    echo "<th>MAH</th>\n";
-    echo "<th>LTR</th>\n";
-    echo "<th>Application Date</th>\n";
-    echo "<th>Current Stage</th>\n";
-    echo "</tr>\n";
-    
-    $i = 1;
-    foreach ($applications as $app) {
-        echo "<tr>\n";
-        echo "<td>" . $i . "</td>\n";
-        echo "<td>" . htmlspecialchars($app->reference_no ?? '') . "</td>\n";
-        echo "<td>" . htmlspecialchars($app->brand_name ?? '') . "</td>\n";
-        echo "<td>" . htmlspecialchars($app->hm_generic_name ?? '') . "</td>\n";
-        echo "<td>" . htmlspecialchars($app->product_strength ?? '') . "</td>\n";
-        echo "<td>" . htmlspecialchars($app->dosage_form ?? '') . "</td>\n";
-        echo "<td>" . htmlspecialchars($app->hm_manufacturer_name ?? '') . "</td>\n";
-        echo "<td>" . htmlspecialchars($app->assessment_procedure ?? '') . "</td>\n";
-         echo "<td>" . htmlspecialchars($app->hm_mah ?? '') . "</td>\n";
-          echo "<td>" . htmlspecialchars($app->hm_ltr ?? '') . "</td>\n";
-        echo "<td>" . htmlspecialchars($app->date_submitted ?? '') . "</td>\n";
-        echo "<td>" . htmlspecialchars(getStageName($app->application_current_stage) ?? '') . "</td>\n";
-        echo "</tr>\n";
-        $i++;
-    }
-    
-    echo "</table>\n";
-    echo "</body>\n";
-    echo "</html>\n";
-    exit();
-}
-
-function getAllApplicationsForExport($pdo, $stage_id, $params) {
-    $base_query = "SELECT a.* FROM tbl_hm_applications a LEFT JOIN tbl_timelines t ON a.application_current_stage = t.status_id AND a.assessment_procedure = t.assessment_pathway";
-    $query_params = [];
-    
-    // Build the same query as main page but without LIMIT
-    if ($stage_id === 'all') {
-        // No additional WHERE clause
-    } elseif ($stage_id === 'under_process') {
-        $base_query .= " WHERE a.application_current_stage IN (1,2,3,4,5,6,7,8,9,11,12,13,15,17,18,19,20,21,22,24,25,26,27,29,31,32,33,34,35,36,37,38,39)";
-    } elseif ($stage_id === 'backlog') {
-        $base_query .= " WHERE a.application_current_stage  IN (1,2,3,4,5,6,7,8,9,11,12,13,15,18,19,20,21,22,24,31,32,33,34,35,36,37,38)
-                        AND a.date_submitted IS NOT NULL 
-                        AND a.date_submitted != '0000-00-00' 
-                        AND STR_TO_DATE(a.date_submitted, '%Y-%m-%d') IS NOT NULL 
-                        AND (
-            (a.assessment_procedure = 'FULL ASSESSMENT' AND (
-                CASE 
-                    WHEN a.date_query_assessment1 IS NOT NULL 
-                         AND a.date_query_assessment1 != '0000-00-00'
-                         AND STR_TO_DATE(a.date_query_assessment1, '%Y-%m-%d') IS NOT NULL
-                    THEN DATEDIFF(a.date_query_assessment1, a.date_submitted) + 
-                         IFNULL(
-                             CASE 
-                                 WHEN a.date_response1 IS NOT NULL 
-                                     AND a.date_response1 != '0000-00-00'
-                                     AND STR_TO_DATE(a.date_response1, '%Y-%m-%d') IS NOT NULL
-                                 THEN 
-                                     CASE 
-                                         WHEN a.date_query_assessment2 IS NOT NULL 
-                                             AND a.date_query_assessment2 != '0000-00-00'
-                                             AND STR_TO_DATE(a.date_query_assessment2, '%Y-%m-%d') IS NOT NULL
-                                         THEN DATEDIFF(a.date_query_assessment2, a.date_response1)
-                                         ELSE DATEDIFF(CURDATE(), a.date_response1)
-                                     END
-                                 ELSE 0
-                             END, 0) + 
-                         IFNULL(
-                             CASE 
-                                 WHEN a.date_response2 IS NOT NULL 
-                                     AND a.date_response2 != '0000-00-00'
-                                     AND STR_TO_DATE(a.date_response2, '%Y-%m-%d') IS NOT NULL
-                                     AND a.date_query_assessment3 IS NOT NULL 
-                                     AND a.date_query_assessment3 != '0000-00-00'
-                                     AND STR_TO_DATE(a.date_query_assessment3, '%Y-%m-%d') IS NOT NULL
-                                 THEN DATEDIFF(a.date_query_assessment3, a.date_response2)
-                                 ELSE 0
-                             END, 0) + 
-                         IFNULL(
-                             CASE 
-                                 WHEN a.date_response3 IS NOT NULL 
-                                     AND a.date_response3 != '0000-00-00'
-                                     AND STR_TO_DATE(a.date_response3, '%Y-%m-%d') IS NOT NULL
-                                 THEN DATEDIFF(CURDATE(), a.date_response3)
-                                 ELSE 0
-                             END, 0)
-                    ELSE DATEDIFF(CURDATE(), a.date_submitted)
-                END > 365
-            )) OR 
-            (a.assessment_procedure IN ('ABRIDGED', 'RECOGNITION') AND (
-                CASE 
-                    WHEN a.date_query_assessment1 IS NOT NULL 
-                         AND a.date_query_assessment1 != '0000-00-00'
-                         AND STR_TO_DATE(a.date_query_assessment1, '%Y-%m-%d') IS NOT NULL
-                    THEN DATEDIFF(a.date_query_assessment1, a.date_submitted) + 
-                         IFNULL(
-                             CASE 
-                                 WHEN a.date_response1 IS NOT NULL 
-                                     AND a.date_response1 != '0000-00-00'
-                                     AND STR_TO_DATE(a.date_response1, '%Y-%m-%d') IS NOT NULL
-                                 THEN 
-                                     CASE 
-                                         WHEN a.date_query_assessment2 IS NOT NULL 
-                                             AND a.date_query_assessment2 != '0000-00-00'
-                                             AND STR_TO_DATE(a.date_query_assessment2, '%Y-%m-%d') IS NOT NULL
-                                         THEN DATEDIFF(a.date_query_assessment2, a.date_response1)
-                                         ELSE DATEDIFF(CURDATE(), a.date_response1)
-                                     END
-                                 ELSE 0
-                             END, 0) + 
-                         IFNULL(
-                             CASE 
-                                 WHEN a.date_response2 IS NOT NULL 
-                                     AND a.date_response2 != '0000-00-00'
-                                     AND STR_TO_DATE(a.date_response2, '%Y-%m-%d') IS Not NULL
-                                     AND a.date_query_assessment3 IS NOT NULL 
-                                     AND a.date_query_assessment3 != '0000-00-00'
-                                     AND STR_TO_DATE(a.date_query_assessment3, '%Y-%m-%d') IS NOT NULL
-                                 THEN DATEDIFF(a.date_query_assessment3, a.date_response2)
-                                 ELSE 0
-                             END, 0) + 
-                         IFNULL(
-                             CASE 
-                                 WHEN a.date_response3 IS NOT NULL 
-                                     AND a.date_response3 != '0000-00-00'
-                                     AND STR_TO_DATE(a.date_response3, '%Y-%m-%d') IS NOT NULL
-                                 THEN DATEDIFF(CURDATE(), a.date_response3)
-                                 ELSE 0
-                             END, 0)
-                    ELSE DATEDIFF(CURDATE(), a.date_submitted)
-                END > 90
-            ))
-        )";
-    } elseif ($stage_id === 'renewal') {
-        $base_query .= " WHERE a.application_process = 'Renewal'";
-    } elseif ($stage_id === 'variation') {
-        $base_query .= " WHERE a.application_process = 'Variation'";
-    } elseif($stage_id === '25') {
-        $base_query .= " WHERE a.application_current_stage IN (25, 26, 27, 17, 29, 39)";
-    } else {
-        $base_query .= " WHERE a.application_current_stage = :stage_id";
-        $query_params['stage_id'] = $stage_id;
-    }
-
-    // Handle letter filter
-    if (isset($params['by']) && $params['by'] !== 'All') {
-        $base_query .= (strpos($base_query, 'WHERE') !== false ? " AND" : " WHERE") . " a.brand_name LIKE :letter";
-        $query_params['letter'] = $params['by'] . '%';
-    }
-
-    // Handle search
-    if (isset($params['search']) && !empty(trim($params['search']))) {
-        $base_query .= (strpos($base_query, 'WHERE') !== false ? " AND" : " WHERE") . " (a.brand_name LIKE :search OR a.reference_no LIKE :search)";
-        $query_params['search'] = '%' . trim($params['search']) . '%';
-    }
-
-    // Handle filter
-    $filter = $params['filter'] ?? 'all';
-    if ($filter !== 'all') {
-        $base_query .= (strpos($base_query, 'WHERE') !== false ? " AND" : " WHERE");
-        if ($filter === 'ontime') {
-            $base_query .= " (t.number_of_days IS NULL OR DATEDIFF(CURDATE(), a.date_submitted) < ROUND(t.number_of_days / 2))";
-        } elseif ($filter === 'tobedelayed') {
-            $base_query .= " (t.number_of_days IS NOT NULL AND DATEDIFF(CURDATE(), a.date_submitted) >= ROUND(t.number_of_days / 2) AND DATEDIFF(CURDATE(), a.date_submitted) <= t.number_of_days)";
-        } elseif ($filter === 'delayed') {
-            $base_query .= " (t.number_of_days IS NOT NULL AND DATEDIFF(CURDATE(), a.date_submitted) > t.number_of_days)";
-        }
-    }
-
-    $base_query .= " ORDER BY a.date_submitted";
-    
-    try {
-        $stmt = $pdo->prepare($base_query);
-        foreach ($query_params as $key => $value) {
-            $stmt->bindValue(':' . $key, $value);
-        }
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_OBJ);
-    } catch (Exception $e) {
-        error_log('Export Error: ' . $e->getMessage());
-        return [];
-    }
-}
-
 function isValidDate($date) {
     if (!$date || $date === '0000-00-00' || $date === null) {
         return false;
@@ -287,8 +68,8 @@ if ($stage_id === 'all') {
     $base_query .= " WHERE a.application_current_stage IN (1,2,3,4,5,6,7,8,9,11,12,13,15,17,18,19,20,21,22,24,25,26,27,29,31,32,33,34,35,36,37,38,39)";
     $stage_name = 'Applications Under Process';
 } elseif ($stage_id === 'backlog') {
-   $base_query .= " WHERE a.application_current_stage  IN (1,2,3,4,5,6,7,8,9,11,12,13,15,18,19,20,21,22,24,31,32,33,34,35,36,37,38)
-
+    //$base_query .= " WHERE a.application_current_stage NOT IN (10, 14, 16, 23, 28, 30)
+    $base_query .= " WHERE a.application_current_stage  IN (1,2,3,4,5,6,7,8,9,11,12,13,15,17,18,19,20,21,22,24,25,26,27,29,31,32,33,34,35,36,37,38,39) 
                     AND a.date_submitted IS NOT NULL 
                     AND a.date_submitted != '0000-00-00' 
                     AND STR_TO_DATE(a.date_submitted, '%Y-%m-%d') IS NOT NULL 
@@ -387,13 +168,7 @@ if ($stage_id === 'all') {
 } elseif ($stage_id === 'variation') {
     $base_query .= " WHERE a.application_process = 'Variation'";
     $stage_name = 'Variation Applications';
-} 
-elseif($stage_id === '25') {
-    $base_query .= " WHERE a.application_current_stage IN (25, 26, 27, 17, 29, 39)";
-    $stage_name = "Awaiting Applicant's Feedback";
-}
-
-else {
+} else {
     $base_query .= " WHERE a.application_current_stage = :stage_id";
     $params['stage_id'] = $stage_id;
     $stage_name = getStageName($stage_id);
@@ -448,7 +223,8 @@ if ($stage_id === 'all') {
 } elseif ($stage_id === 'under_process') {
     $timeline_base_query .= " WHERE application_current_stage IN (1,2,3,4,5,6,7,8,9,11,12,13,15,17,18,19,20,21,22,24,25,26,27,29,31,32,33,34,35,36,37,38,39)";
 } elseif ($stage_id === 'backlog') {
-    $timeline_base_query .= " WHERE application_current_stage  IN (1,2,3,4,5,6,7,8,9,11,12,13,15,18,19,20,21,22,24,31,32,33,34,35,36,37,38)
+    //$timeline_base_query .= " WHERE application_current_stage NOT IN (10, 14, 16, 23, 28, 30) 
+    $timeline_base_query .= " WHERE application_current_stage  IN (1,2,3,4,5,6,7,8,9,11,12,13,15,17,18,19,20,21,22,24,25,26,27,29,31,32,33,34,35,36,37,38,39) 
                             AND date_submitted IS NOT NULL 
                             AND date_submitted != '0000-00-00' 
                             AND STR_TO_DATE(date_submitted, '%Y-%m-%d') IS NOT NULL 
@@ -552,7 +328,8 @@ try {
     $days_processing = (strtotime($datetoday) - strtotime($date_screening)) / 86400;
 } 
 
-                    elseif (!empty($date_first_assessment1) && $application_current_stage ==35) {
+                    elseif (!empty($date_screening) && $application_current_stage ==35) {
+                        
     $days_processing = (strtotime($datetoday) - strtotime($date_first_assessment1)) / 86400;
 } 
                     
@@ -618,32 +395,17 @@ function getStageName($stage_id) {
         '6' => 'Passed Peer Review',
         '7' => 'Pending Assessment',
         '8' => 'Query Letters to be Sent',
-        '9' => 'Queried - Assessment',
         '10' => 'Registered',
-        '11' => 'Queried - Assessment-Round1',
-        '12' => 'Queried_Assessment-Round2',
-        '13' => 'Queried_Assessment-Round3',
         '14' => 'Rejected',
-        '17' => 'Query letter sent - to Update Dossier',
         '19' => 'Pending GMP',
-        '20' => 'Passed Peer Review But Pending GMP',
         '21' => 'ADD. DATA, Under 1st Assessment',
         '22' => 'ADD. DATA, Under 2nd Assessment',
-        '24' => 'Approved',
         '25' => 'Awaiting Applicant\'s Feedback',
-        '26' => 'Query letter sent - Round1',
-        '27' => 'Query letter sent - Round2',
-        '28' => 'Awaiting payment',
         '30' => 'Expired',
-        '31' => 'Under 1st Assessment - Round2',
-        '34' => 'Under 2nd Assessment - Round3',
-        '32' => 'Under 2nd Assessment - Round2',
         '35' => 'Pending 2nd Assessment',
         '36' => 'Pending ADD. DATA 1st Assessment',
         '37' => 'Pending ADD. DATA 2nd Assessment',
-        '38' => 'Manager (1st & 2nd Reports Review)',
-        '39' => 'Query letter sent - All',
-        '100' => 'Unknown'
+        '38' => 'Manager (1st & 2nd Reports Review)'
     ];
     return $stage_names[$stage_id] ?? 'Stage ' . $stage_id;
 }
@@ -658,8 +420,6 @@ $base_url = 'hmdr_page.php?' . http_build_query(array_filter([
 ]));
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
 <head>
     <title>MA - Monitoring - <?php echo htmlspecialchars($stage_name); ?></title>
     <meta charset="utf-8">
@@ -1089,38 +849,25 @@ $base_url = 'hmdr_page.php?' . http_build_query(array_filter([
             margin-bottom: 15px;
             flex-wrap: wrap;
         }
-        a.branding-link {
-            text-decoration: none;
-            color: inherit;
-        }
-        .export-btn {
-            background-color: #28a745;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: background-color 0.3s;
-        }
-        .export-btn:hover {
-            background-color: #218838;
-        }
+            a.branding-link {
+    text-decoration: none;
+    color: inherit;
+}
     </style>
 </head>
 
 <body>
     <header class="header">
         <div class="header-content">
-            <a href="../landing_page.php" class="branding-link">
-                <div class="branding">
-                    <div class="logo">H</div>
-                    <div class="brand-text">
-                        <h1>HMDR Dashboard</h1>
-                        <p>Human Medicines Registration Monitoring tool</p>
-                    </div>
-                </div>
-            </a>
+                 <a href="../landing_page.php" class="branding-link">
+    <div class="branding">
+        <div class="logo">H</div>
+        <div class="brand-text">
+            <h1>HMDR Dashboard</h1>
+            <p>Human Medicines Registration Monitoring tool</p>
+        </div>
+    </div>
+</a>
             <div class="header-actions">
                 <button class="icon-button">
                     <i class="fas fa-bell"></i>
@@ -1203,26 +950,11 @@ $base_url = 'hmdr_page.php?' . http_build_query(array_filter([
             <div class="main-content">
                 <div class="content-header">
                     <h2><?php echo htmlspecialchars($stage_name); ?></h2>
-                    <div>
-                        <a href="<?php 
-                            echo 'hmdr_page.php?' . http_build_query(array_merge(
-                                array_filter([
-                                    'stage_id' => $stage_id,
-                                    'by' => $_GET['by'] ?? null,
-                                    'search' => $search,
-                                    'filter' => $filter
-                                ]),
-                                ['export' => 'xls']
-                            )); 
-                        ?>" class="btn btn-success btn-sm">
-                            <i class="fas fa-file-excel"></i> Export to Excel
-                        </a>
-                    </div>
                 </div>
-                <?php
-                if ($stage_name <> 'Backlog Applications')
-                {
-                ?>
+<?php
+if ($stage_name <> 'Backlog Applications')
+{
+?>
                 <div class="panel panel-default status-card">
                     <div class="panel-heading">
                         <h3 class="panel-title">Application Status Summary (<?php echo htmlspecialchars($stage_name); ?>)</h3>
@@ -1249,9 +981,9 @@ $base_url = 'hmdr_page.php?' . http_build_query(array_filter([
                         </div>
                     </div>
                 </div>
-                <?php
-                }
-                ?>
+<?php
+}
+?>
                 <div class="search-container">
                     <form id="searchForm" action="hmdr_page.php" method="GET">
                         <i class="fas fa-search"></i>
@@ -1267,24 +999,6 @@ $base_url = 'hmdr_page.php?' . http_build_query(array_filter([
 
                 <div id="myDiv" style="width:100%; overflow: auto;">
                     <div class="table-responsive">
-
-                       <?php 
-                    if ($access == 100 || $access == 4) {
-                        if ($stage_id === '10') {
-                    ?>
-                    <div class="container-fluid">
-                        <div class="row">
-                            <div class="col-12 d-flex justify-content-end mt-3">
-                                <a href="add_register.php" class="btn btn-primary btn-sm">Update Register</a>
-                            </div>
-                        </div>
-                    </div>
-                    <?php   
-                        }
-                    }
-                    ?>
-
-
                         <table class="table table-striped">
                             <tr>
                                 <td colspan="11"><p><a href="hmdr_dashboard.php">Back to Dashboard</a></p></td>
@@ -1313,31 +1027,8 @@ $base_url = 'hmdr_page.php?' . http_build_query(array_filter([
                                     }
                                     ?>
                                 </td>
-                                <td>
-                                <b>
-                                    <?php 
-                                    if ($stage_id === 'backlog') {
-                                        echo 'Processing Days';
-                                    } elseif ($stage_id === '10') {
-                                        echo 'Registration Number';
-                                    } else {
-                                        echo 'Process Timeline';
-                                    }
-                                    ?>
-                                </b>
-                                </td>
-                                  <td><b>Current Stage</b></td>
+                                <td><b><?php echo $stage_id === 'backlog' ? 'Processing Days' : 'Process Timeline'; ?></b></td>
                                 <td><b>Actions</b></td>
-                                
-                                <?php if ($access ==100)
-                                {
-                                ?>
-                                <td></td>
-                                <td></td>
-                                <?php
-                                }       
-                                ?>
-                               
                             </tr>
                             <tbody id="myTable">
                                 <?php
@@ -1425,9 +1116,9 @@ $base_url = 'hmdr_page.php?' . http_build_query(array_filter([
                                                         error_log("Calculating days_processing from date_screening for application ID: $hm_application_id $date_screening");
                                                         $days_processing = (strtotime($datetoday) - strtotime($date_screening)) / 86400;
                                                     } 
-                                                                        elseif (!empty($date_screening) && $application_current_stage ==35) {
-    $days_processing = (strtotime($datetoday) - strtotime($date_first_assessment1)) / 86400;
-} 
+                                                        elseif (!empty($date_screening) && $application_current_stage ==35) {
+                                                            $days_processing = (strtotime($datetoday) - strtotime($date_first_assessment1)) / 86400;
+                                                        } 
                                                     elseif (!empty($date_submitted)) {
                                                         $days_processing = (strtotime($datetoday) - strtotime($date_submitted)) / 86400;
                                                     } 
@@ -1454,7 +1145,7 @@ $base_url = 'hmdr_page.php?' . http_build_query(array_filter([
                                         $days_processing_monitoring = "<strong><font color='red'>Error</font></strong>";
                                     }
 
-                                    echo "<tr class='clickable-row' data-href='hmdr_more_details.php?app_id=$hm_application_id&stage_id=$application_current_stage' title='Double click to open'>";
+                                    echo "<tr class='clickable-row' data-href='hmdr_more_details.php?app_id=$hm_application_id' title='Double click to open'>";
                                     echo "<td>" . ++$i . "</td>";
                                     echo "<td>$reference_no</td>";
                                     echo "<td>$brand_name</td>";
@@ -1475,44 +1166,12 @@ $base_url = 'hmdr_page.php?' . http_build_query(array_filter([
                                         echo $date_submitted;
                                     }
                                     echo "</td>";
-
-                                        echo "<td>";
-                                        if ($stage_id === 'backlog') {
-                                            echo number_format($days_backlog, 0);
-                                        } elseif ($stage_id === '10') {
-                                            echo $registration_number = $application_req->product_registration_number;
-                                        } else {
-                                            echo $days_processing_monitoring;
-                                        }
-                                        echo "</td>";
-
-                                     echo "<td>" . htmlspecialchars(getStageName($application_current_stage)). "</td>";
-
+                                    echo "<td>" . ($stage_id === 'backlog' ? number_format($days_backlog, 0) : $days_processing_monitoring) . "</td>";
                                     echo "<td>";
-                                    
                                     if ($access == 100) {
                                         echo "<a href='update_info.php?app_id=$hm_application_id&stage_id=$stage_id' class='btn btn-primary btn-sm'>Update Info</a>";
-                            
                                     }
-                                    echo "</td>"; 
-
-                                     echo "<td>";
-                                    
-                                   if ($access == 100) {
-                                        echo "<a href='update_info_assignment.php?app_id=$hm_application_id&stage_id=$stage_id' class='btn btn-primary btn-sm'>Asignments</a>";
-                            
-                                    }
-                                    echo "</td>"; 
-
-                                     echo "<td>";
-                                    if ($access == 100) {
-                                           echo "<a href='update_stages.php?app_id=$hm_application_id&stage_id=$stage_id' class='btn btn-primary btn-sm'>Update Stages</a>";                            
-                                    }
-                                    echo "</td>"; 
-
-
-
-                                    echo "</tr>";
+                                    echo "</td></tr>";
                                 }
                                 ?>
                             </tbody>
@@ -1676,4 +1335,3 @@ $base_url = 'hmdr_page.php?' . http_build_query(array_filter([
         });
     </script>
 </body>
-</html>

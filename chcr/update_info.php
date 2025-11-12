@@ -39,7 +39,7 @@ $sql = "SELECT
             date_query_assessment3,
             date_response3,
             assessment_procedure
-        FROM tbl_hm_applications
+        FROM tbl_hm_applications_cosmetics
         WHERE hm_application_id = :app_id";
 
 $stmt = $pdo->prepare($sql);
@@ -98,7 +98,7 @@ $data = [
     'updated_by' => $user_id
 ];
 
-    $updateQuery = "UPDATE tbl_hm_applications SET
+    $updateQuery = "UPDATE tbl_hm_applications_cosmetics SET
         reference_no = :reference_no,
         tracking_no = :tracking_no,
         brand_name = :brand_name,

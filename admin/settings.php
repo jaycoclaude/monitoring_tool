@@ -8,15 +8,13 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_access'])) {
     exit();
 }
 
-
-
 $user_id = $_SESSION['user_id'];
 $user_email = $_SESSION['user_email'];
+
 $user_access = $_SESSION['user_access'];
 
-if ($user_access !== '100') {
-    include '../under_development.php';
-
+if ($user_access != '100') {
+    echo '<div class="alert alert-danger"><p>Not allowed to access ADMIN page. Insufficient permissions.</p> <a> href="../index.php">Click here</a></div>';
     exit();
 }
 
@@ -36,43 +34,30 @@ try {
     exit();
 }
 
-// Fetch QMS dashboard statistics
+// Fetch dashboard statistics
 try {
-    // Document statistics
-    $total_documents = $pdo->query("SELECT COUNT(*) FROM tbl_documents")->fetchColumn();
-    $pending_documents = $pdo->query("SELECT COUNT(*) FROM tbl_documents WHERE status = 'pending_review'")->fetchColumn();
+    // User statistics
+    $total_users = $pdo->query("SELECT COUNT(*) FROM tbl_hm_users")->fetchColumn();
+    $active_users = $pdo->query("SELECT COUNT(*) FROM tbl_hm_users WHERE user_status = 1")->fetchColumn();
     
-    // CAPA statistics
-    $open_capa = $pdo->query("SELECT COUNT(*) FROM tbl_capa WHERE status IN ('open', 'in_progress')")->fetchColumn();
-    $overdue_capa = $pdo->query("SELECT COUNT(*) FROM tbl_capa WHERE due_date < CURDATE() AND status IN ('open', 'in_progress')")->fetchColumn();
+    // Application statistics (adjust table names as needed)
+    $total_applications = $pdo->query("SELECT COUNT(*) FROM tbl_applications")->fetchColumn();
+    $pending_applications = $pdo->query("SELECT COUNT(*) FROM tbl_applications WHERE status = 'pending'")->fetchColumn();
     
-    // Audit statistics
-    $upcoming_audits = $pdo->query("SELECT COUNT(*) FROM tbl_audits WHERE audit_date >= CURDATE() AND status = 'scheduled'")->fetchColumn();
-    
-    // Risk statistics
-    $high_risks = $pdo->query("SELECT COUNT(*) FROM tbl_risks WHERE risk_level = 'high' AND status = 'open'")->fetchColumn();
-    
-    // Recent QMS activity
-    $recent_activities = $pdo->query("
-        (SELECT 'document' as type, document_name as description, created_by, created_at FROM tbl_documents ORDER BY created_at DESC LIMIT 3)
-        UNION ALL
-        (SELECT 'capa' as type, capa_title as description, assigned_to, created_at FROM tbl_capa ORDER BY created_at DESC LIMIT 3)
-        UNION ALL
-        (SELECT 'audit' as type, audit_title as description, auditor, created_at FROM tbl_audits ORDER BY created_at DESC LIMIT 2)
-        ORDER BY created_at DESC LIMIT 5
-    ")->fetchAll(PDO::FETCH_OBJ);
+    // Recent activity
+    $recent_users = $pdo->query("SELECT user_email, created_at FROM tbl_hm_users ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_OBJ);
     
 } catch (Exception $e) {
-    error_log('Error fetching QMS dashboard data: ' . $e->getMessage());
-    $total_documents = $pending_documents = $open_capa = $overdue_capa = $upcoming_audits = $high_risks = 0;
-    $recent_activities = [];
+    error_log('Error fetching dashboard data: ' . $e->getMessage());
+    $total_users = $active_users = $total_applications = $pending_applications = 0;
+    $recent_users = [];
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>QMS - Quality Management System Dashboard</title>
+    <title>MA - Administration Dashboard</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
@@ -124,7 +109,7 @@ try {
             width: 28px;
             height: 28px;
             border-radius: 6px;
-            background-color: #2c5aa0;
+            background-color: #0f5e8a;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -185,7 +170,7 @@ try {
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #2c5aa0;
+            color: #0f5e8a;
             font-size: 12px;
         }
         .user-name {
@@ -273,32 +258,24 @@ try {
             justify-content: center;
             margin-bottom: 15px;
         }
-        .card-icon.documents {
+        .card-icon.users {
             background-color: #e6f2ff;
-            color: #2c5aa0;
+            color: #0f5e8a;
+        }
+        .card-icon.applications {
+            background-color: #e6fff2;
+            color: #0f8a5e;
         }
         .card-icon.pending {
             background-color: #fff2e6;
-            color: #d97706;
+            color: #8a5e0f;
         }
-        .card-icon.capa {
-            background-color: #dcfce7;
-            color: #16a34a;
-        }
-        .card-icon.audits {
-            background-color: #e0e7ff;
-            color: #4f46e5;
-        }
-        .card-icon.risks {
-            background-color: #fef3c7;
-            color: #d97706;
-        }
-        .card-icon.overdue {
-            background-color: #fee2e2;
-            color: #ef4444;
+        .card-icon.completed {
+            background-color: #f2e6ff;
+            color: #5e0f8a;
         }
         
-        /* Activity Section */
+        /* Recent Activity */
         .activity-section {
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -345,7 +322,7 @@ try {
             align-items: center;
             justify-content: center;
             margin-right: 12px;
-            color: #2c5aa0;
+            color: #0f5e8a;
         }
         .activity-content {
             flex: 1;
@@ -380,7 +357,7 @@ try {
         }
         .quick-action-btn:hover {
             background: #f8fafc;
-            border-color: #2c5aa0;
+            border-color: #0f5e8a;
             transform: translateY(-1px);
         }
         .quick-action-icon {
@@ -392,7 +369,7 @@ try {
             align-items: center;
             justify-content: center;
             margin: 0 auto 10px;
-            color: #2c5aa0;
+            color: #0f5e8a;
         }
         .quick-action-text {
             font-size: 11px;
@@ -423,113 +400,105 @@ try {
     </style>
 </head>
 <body>
-
-    <?php include 'header.php'; ?>
+    <header class="header">
+        <div class="header-content">
+            <div class="branding">
+                <button class="mobile-menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="logo">A</div>
+                <div class="brand-text">
+                    <h1>ADMINISTRATION</h1>
+                    <p>Manage the Administration of the Monitoring tool</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="icon-button">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge"></span>
+                </button>
+                <div class="user-profile">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="user-name"><?php echo $user_email; ?></div>
+                </div>
+            </div>
+        </div>
+    </header>
 
     <div class="main-container">
         <?php include 'sidebar.php'; ?>
 
         <div class="main-content">
             <div class="content-header">
-                <h2>QMS Dashboard Overview</h2>
-                <p>Welcome back! Here's what's happening with your Quality Management System today.</p>
+                <h2>Dashboard Overview</h2>
+                <p>Welcome back! Here's what's happening with your system today.</p>
             </div>
 
             <div class="dashboard-cards">
                 <div class="card">
-                    <div class="card-icon documents">
+                    <div class="card-icon users">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="card-title">
+                        <span>Total Users</span>
+                    </div>
+                    <div class="card-value"><?php echo $total_users; ?></div>
+                    <div class="card-change positive">+<?php echo $active_users; ?> active</div>
+                </div>
+                <div class="card">
+                    <div class="card-icon applications">
                         <i class="fas fa-file-alt"></i>
                     </div>
                     <div class="card-title">
-                        <span>Total Documents</span>
+                        <span>Total Applications</span>
                     </div>
-                    <div class="card-value"><?php echo $total_documents; ?></div>
-                    <div class="card-change">Controlled documents</div>
+                    <div class="card-value"><?php echo $total_applications; ?></div>
+                    <div class="card-change">All time</div>
                 </div>
                 <div class="card">
                     <div class="card-icon pending">
                         <i class="fas fa-clock"></i>
                     </div>
                     <div class="card-title">
-                        <span>Pending Review</span>
+                        <span>Pending Actions</span>
                     </div>
-                    <div class="card-value"><?php echo $pending_documents; ?></div>
-                    <div class="card-change negative">Require attention</div>
+                    <div class="card-value"><?php echo $pending_applications; ?></div>
+                    <div class="card-change">Require attention</div>
                 </div>
                 <div class="card">
-                    <div class="card-icon capa">
-                        <i class="fas fa-tools"></i>
+                    <div class="card-icon completed">
+                        <i class="fas fa-check-circle"></i>
                     </div>
                     <div class="card-title">
-                        <span>Open CAPA</span>
+                        <span>System Status</span>
                     </div>
-                    <div class="card-value"><?php echo $open_capa; ?></div>
-                    <div class="card-change">Corrective actions</div>
-                </div>
-                <div class="card">
-                    <div class="card-icon overdue">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                    <div class="card-title">
-                        <span>Overdue Actions</span>
-                    </div>
-                    <div class="card-value"><?php echo $overdue_capa; ?></div>
-                    <div class="card-change negative">Past due date</div>
-                </div>
-                <div class="card">
-                    <div class="card-icon audits">
-                        <i class="fas fa-clipboard-check"></i>
-                    </div>
-                    <div class="card-title">
-                        <span>Upcoming Audits</span>
-                    </div>
-                    <div class="card-value"><?php echo $upcoming_audits; ?></div>
-                    <div class="card-change">Scheduled audits</div>
-                </div>
-                <div class="card">
-                    <div class="card-icon risks">
-                        <i class="fas fa-exclamation-circle"></i>
-                    </div>
-                    <div class="card-title">
-                        <span>High Risks</span>
-                    </div>
-                    <div class="card-value"><?php echo $high_risks; ?></div>
-                    <div class="card-change negative">Require mitigation</div>
+                    <div class="card-value">Online</div>
+                    <div class="card-change positive">All systems operational</div>
                 </div>
             </div>
 
             <div class="activity-section">
                 <div class="activity-card">
-                    <h3>Recent QMS Activity</h3>
+                    <h3>Recent Activity</h3>
                     <ul class="activity-list">
-                        <?php if (count($recent_activities) > 0): ?>
-                            <?php foreach ($recent_activities as $activity): ?>
+                        <?php if (count($recent_users) > 0): ?>
+                            <?php foreach ($recent_users as $user): ?>
                                 <li class="activity-item">
                                     <div class="activity-icon">
-                                        <i class="fas <?php 
-                                            echo $activity->type == 'document' ? 'fa-file-alt' : 
-                                                   ($activity->type == 'capa' ? 'fa-tools' : 'fa-clipboard-check'); 
-                                        ?>"></i>
+                                        <i class="fas fa-user-plus"></i>
                                     </div>
                                     <div class="activity-content">
-                                        <div class="activity-text">
-                                            <?php 
-                                                $typeText = $activity->type == 'document' ? 'Document Created' : 
-                                                           ($activity->type == 'capa' ? 'CAPA Opened' : 'Audit Scheduled');
-                                                echo $typeText . ': ' . htmlspecialchars($activity->description);
-                                            ?>
-                                        </div>
-                                        <div class="activity-time">
-                                            By <?php echo htmlspecialchars($activity->created_by ?? $activity->assigned_to ?? $activity->auditor ?? 'System'); ?> • 
-                                            <?php echo date('M j, Y g:i A', strtotime($activity->created_at)); ?>
-                                        </div>
+                                        <div class="activity-text">New user registered: <?php echo htmlspecialchars($user->user_email); ?></div>
+                                        <div class="activity-time"><?php echo date('M j, Y g:i A', strtotime($user->created_at)); ?></div>
                                     </div>
                                 </li>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <li class="activity-item">
                                 <div class="activity-content">
-                                    <div class="activity-text">No recent QMS activity</div>
+                                    <div class="activity-text">No recent activity</div>
                                 </div>
                             </li>
                         <?php endif; ?>
@@ -539,57 +508,34 @@ try {
                 <div class="activity-card">
                     <h3>Quick Actions</h3>
                     <div class="quick-actions">
-                        <a href="documents.php" class="quick-action-btn">
+                        <a href="all_users.php" class="quick-action-btn">
                             <div class="quick-action-icon">
-                                <i class="fas fa-file-medical"></i>
+                                <i class="fas fa-user-plus"></i>
                             </div>
-                            <div class="quick-action-text">New Document</div>
+                            <div class="quick-action-text">Add User</div>
                         </a>
-                        <a href="capa.php" class="quick-action-btn">
+                        <a href="applications.php" class="quick-action-btn">
                             <div class="quick-action-icon">
-                                <i class="fas fa-tools"></i>
+                                <i class="fas fa-file-import"></i>
                             </div>
-                            <div class="quick-action-text">Create CAPA</div>
+                            <div class="quick-action-text">New Application</div>
                         </a>
-                        <a href="audits.php" class="quick-action-btn">
-                            <div class="quick-action-icon">
-                                <i class="fas fa-clipboard-check"></i>
-                            </div>
-                            <div class="quick-action-text">Route A Document</div>
-                        </a>
-                        <a href="reports_dashboards.php" class="quick-action-btn">
+                        <a href="reports.php" class="quick-action-btn">
                             <div class="quick-action-icon">
                                 <i class="fas fa-chart-bar"></i>
                             </div>
-                            <div class="quick-action-text">QMS Reports</div>
+                            <div class="quick-action-text">Generate Report</div>
+                        </a>
+                        <a href="settings.php" class="quick-action-btn">
+                            <div class="quick-action-icon">
+                                <i class="fas fa-cog"></i>
+                            </div>
+                            <div class="quick-action-text">System Settings</div>
                         </a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <script>
-        // Mobile menu toggle functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
-            const sidebar = document.getElementById('sidebar');
-            
-            if (mobileMenuToggle && sidebar) {
-                mobileMenuToggle.addEventListener('click', function() {
-                    sidebar.classList.toggle('open');
-                });
-            }
-
-            // Close sidebar when clicking outside on mobile
-            document.addEventListener('click', function(event) {
-                if (window.innerWidth <= 768) {
-                    if (!event.target.closest('.sidebar') && !event.target.closest('.mobile-menu-toggle')) {
-                        if (sidebar) sidebar.classList.remove('open');
-                    }
-                }
-            });
-        });
-    </script>
 </body>
 </html>

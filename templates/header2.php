@@ -224,14 +224,20 @@ $userEmail = $isLoggedIn ? $_SESSION['user_email'] : '';
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#">
-                            <i class="fas fa-file-alt me-1"></i> Reports
+                            <i class="fas fa-file-alt me-1"></i> Reports 
                         </a>
                     </li>
+                    <?php 
+                    
+                    if($user_access==100)
+                    {
+                    ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="fas fa-cog me-1"></i> Settings
+                        <a class="nav-link" href="admin/">
+                            <i class="fas fa-cog me-1"></i> Administration
                         </a>
                     </li>
+                    <?php } ?>
                 </ul>
             </div>
         </nav>
