@@ -2,7 +2,7 @@
 // data.php
 require_once '../includes/config.php';
 require_once '../includes/auth.php';
-require_once __DIR__ . '/../includes/logger.php';
+require_once '/../includes/logger.php';
 $current_staff = $_SESSION['user_id'];
 
 if (!$current_staff) {
@@ -138,22 +138,27 @@ function updateTaskStatus($task_id, $status, $staff_id)
     try {
         $pdo->beginTransaction();
 
-
         $stmt = $pdo->prepare("UPDATE tbl_tasks SET status = ?, updated_at = NOW() WHERE task_id = ?");
         $stmt->execute([$status, $task_id]);
 
-
-        $stmt = $pdo->prepare("INSERT INTO tbl_task_updates (task_id, staff_id, status_change, created_at) 
-                               VALUES (?, ?, ?, NOW())");
+        $stmt = $pdo->prepare("
+            INSERT INTO tbl_task_updates (task_id, staff_id, status_change, comment, created_at)
+            VALUES (?, ?, ?, '', NOW())
+        ");
         $stmt->execute([$task_id, $staff_id, $status]);
 
         $pdo->commit();
         return true;
     } catch (Exception $e) {
         $pdo->rollBack();
+
+        // Add this line temporarily to debug if needed:
+        error_log('updateTaskStatus error: ' . $e->getMessage());
+
         return false;
     }
 }
+
 
 function getTaskUpdates($task_id)
 {

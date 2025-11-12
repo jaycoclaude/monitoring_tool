@@ -29,11 +29,15 @@ if ($searchTerm !== '') {
 
 $createdTasks   = array_filter($tasks, fn($t) => $t['assigned_by_email'] === $current_staff_email);
 $inboxTasks     = array_filter($tasks, fn($t) => $t['assigned_to_name'] === $current_staff_name && $t['status'] != 'completed');
-$completedTasks = array_filter($tasks, fn($t) =>
+$completedTasks = array_filter(
+    $tasks,
+    fn($t) =>
     $t['status'] == 'completed' &&
-    ($t['assigned_to_name'] === $current_staff_name || $t['assigned_by_email'] === $current_staff_email)
+        ($t['assigned_to_name'] === $current_staff_name || $t['assigned_by_email'] === $current_staff_email)
 );
-$inboxTasks = array_filter( $tasks,    fn($t) =>    $t['assigned_to_name'] === $current_staff_name &&        in_array($t['status'], ['pending', 'in_progress', 'review'])
+$inboxTasks = array_filter(
+    $tasks,
+    fn($t) =>    $t['assigned_to_name'] === $current_staff_name &&        in_array($t['status'], ['pending', 'in_progress', 'review'])
 );
 
 $tasksPerPage = 6;
@@ -64,7 +68,9 @@ require_once 'header.php';
 <div class="page-header">
     <h1 class="page-title"><i class="fas fa-tasks"></i> My Assignments</h1>
     <div class="action-buttons">
-        <a href="create.php" class="btn btn-success"><i class="fas fa-plus"></i> New Assignment</a>
+        <?php if (can('create_task')): ?>
+            <a href="create.php" class="btn btn-success"><i class="fas fa-plus"></i> New Assignment</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -199,10 +205,14 @@ function renderTaskCard($task)
 
     $actionButtons = [];
     $actionButtons[] = "<a href='view.php?id={$task['task_id']}' class='view-btn'><i class='fas fa-eye'></i> View Details</a>";
-    if ($task['assigned_by_name'] === $current_staff_name) {
+    if (can('edit') && $task['assigned_by_name'] === $current_staff_name) {
         $actionButtons[] = "<a href='edit.php?id={$task['task_id']}' class='view-btn edit'><i class='fas fa-edit'></i> Edit</a>";
-        $actionButtons[] = "<a href='delete.php?id={$task['task_id']}' onclick=\"return confirm('Are you sure you want to delete this assignment?');\" class='view-btn delete'><i class='fas fa-trash'></i> Delete</a>";
     }
+
+    if (can('delete_task') && $task['assigned_by_name'] === $current_staff_name) {
+        $actionButtons[] = "<a href='delete.php?id={$task['task_id']}' onclick=\"return confirm('Are you sure?');\" class='view-btn delete'><i class='fas fa-trash'></i> Delete</a>";
+    }
+
 
     $buttonsHtml = '<div class="card-actions">' . implode('', $actionButtons) . '</div>';
 

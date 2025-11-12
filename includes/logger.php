@@ -1,6 +1,6 @@
 <?php
 function log_message(string $message, string $context = 'app'): void {
-    $logDir = __DIR__ . '/../logs';
+    $logDir = '/../logs';
     $logFile = "{$logDir}/{$context}.log";
 
     // Ensure log directory exists

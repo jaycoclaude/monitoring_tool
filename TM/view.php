@@ -194,50 +194,32 @@ function getCurrentStaffId(): int
 
 
 
-        <!-- 2. Submit for Review (assignee only) -->
-        <?php if ($task['assigned_to'] == getCurrentStaffId() && !in_array($task['status'], ['completed', 'review'])): ?>
-            <div class="card submit-review">
-                <div class="card-header">
-                    <h2 class="card-title">
-                        <i class="fa-solid fa-paper-plane"></i> Submit for Review
-                    </h2>
-                </div>
+<!-- 2. Submit for Review (assignee only) -->
+<?php if (can('submit_review') && $task['assigned_to'] == getCurrentStaffId() && !in_array($task['status'], ['completed', 'review'])): ?>
+    <div class="card">
+        <h2 class="card-title"><i class="fa-solid fa-share-square"></i> Submit for Review</h2>
+        <form method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="task_id" value="<?= $task['task_id'] ?>">
 
-                <form method="POST" enctype="multipart/form-data" class="review-form">
-                    <input type="hidden" name="task_id" value="<?= $task['task_id'] ?>">
-
-                    <div class="form-group">
-                        <label for="review_comment">
-                            <i class="fa-solid fa-comment-dots"></i> Comment (Optional)
-                        </label>
-                        <textarea
-                            name="review_comment"
-                            id="review_comment"
-                            placeholder="Add a comment or summary for your submission..."
-                            rows="3">
-        </textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="review_attachments">
-                            <i class="fa-solid fa-paperclip"></i> Attach Files
-                        </label>
-                        <div class="file-input-wrapper">
-                            <input type="file" name="review_attachments[]" id="review_attachments" multiple
-                                accept=".pdf,.doc,.docx,.jpg,.png,.zip"><br>
-
-                        </div>
-                        <small class="hint">Allowed: PDF, DOC, DOCX, JPG, PNG, ZIP</small>
-                    </div><br>
-
-                    <div class="form-actions">
-                        <button type="submit" name="submit_review" class="btn btn-review">
-                            <i class="fa-solid fa-check-double"></i> Submit for Review
-                        </button>
-                    </div>
-                </form>
+            <div class="form-group">
+                <label for="review_comment"><i class="fa-solid fa-comment-dots"></i> Comment</label>
+                <textarea name="review_comment" id="review_comment" placeholder="Enter any remarks or summary..." rows="3" required></textarea>
             </div>
-        <?php endif; ?>
+
+            <div class="form-group">
+                <label for="review_attachments"><i class="fa-solid fa-paperclip"></i> Attach Files (optional)</label>
+                <input type="file" name="review_attachments[]" id="review_attachments" multiple accept=".pdf,.doc,.docx,.jpg,.png,.zip">
+            </div>
+
+            <div class="form-actions" style="text-align:center; margin-top:10px;">
+                <button type="submit" name="submit_review" class="btn btn-review">
+                    <i class="fa-solid fa-paper-plane"></i> Submit for Review
+                </button>
+            </div>
+        </form>
+    </div>
+<?php endif; ?>
+
 
 
 
@@ -260,13 +242,15 @@ function getCurrentStaffId(): int
                         </div><br>
 
                         <div class="decision-actions" style="display: flex; justify-content: center; gap: 15px;">
-                            <button type="submit" name="return_redo" class="btn btn-return">
-                                <i class="fa-solid fa-rotate-left"></i> Return for Re-do
-                            </button>
+                            <?php if ($task['assigned_by'] == $current_user_id && $task['status'] === 'review'): ?>
+                                <?php if (can('return_task')): ?>
+                                    <button type="submit" name="return_redo" class="btn btn-return">Return for Re-do</button>
+                                <?php endif; ?>
 
-                            <button type="submit" name="approve" class="btn btn-approve">
-                                <i class="fa-solid fa-thumbs-up"></i> Approve (Complete)
-                            </button>
+                                <?php if (can('approve_task')): ?>
+                                    <button type="submit" name="approve" class="btn btn-approve">Approve (Complete)</button>
+                                <?php endif; ?>
+                            <?php endif; ?>
                         </div>
                     </form>
                 </div>
@@ -299,27 +283,80 @@ function getCurrentStaffId(): int
     </div>
 <?php endif; ?> <br><br>
 
-<!-- Review Submission (if exists) -->
-<?php if ($review): ?>
+<!-- Task Discussion (Assignee + Assigner Comments) -->
+<?php if ($review || !empty($updates)): ?>
     <div class="card review-box">
-        <h3><i class="fa-solid fa-comment-medical"></i> Review Submission</h3>
-        <p><strong>Submitted by:</strong> <?= htmlspecialchars($review['submitted_by_name']) ?>
-            on <?= date('M j, Y H:i', strtotime($review['created_at'])) ?></p>
-        <?php if ($review['comment']): ?>
-            <p><strong>Comment:</strong> <?= nl2br(htmlspecialchars($review['comment'])) ?></p>
-        <?php endif; ?>
-        <?php if (!empty($review['attachments'])): ?>
-            <div class="review-attach">
-                <strong>Review Attachments:</strong>
-                <?php foreach ($review['attachments'] as $f): ?>
-                    <a href="download.php?file=<?= urlencode($f) ?>&mode=preview" target="_blank">
-                        <i class="fa-solid fa-paperclip"></i> <?= htmlspecialchars($f) ?>
-                    </a>
-                <?php endforeach; ?>
+        <h3><i class="fa-solid fa-comments"></i> Task Discussion</h3>
+
+        <?php if ($review): ?>
+            <div class="comment-item highlight">
+                <div class="comment-header">
+                    <strong><i class="fa-solid fa-user-check"></i> <?= htmlspecialchars($review['submitted_by_name']) ?></strong>
+                    <span class="comment-date"><?= date('M j, Y H:i', strtotime($review['created_at'])) ?></span>
+                </div>
+                <?php if ($review['comment']): ?>
+                    <div class="comment-body">
+                        <?= nl2br(htmlspecialchars($review['comment'])) ?>
+                    </div>
+                <?php endif; ?>
+                <?php if (!empty($review['attachments'])): ?>
+                    <div class="comment-attachments">
+                        <strong><i class="fa-solid fa-paperclip"></i> Attachments:</strong>
+                        <?php foreach ($review['attachments'] as $f): ?>
+                            <a href="download.php?file=<?= urlencode($f) ?>&mode=preview" target="_blank">
+                                <?= htmlspecialchars($f) ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
             </div>
+        <?php endif; ?>
+
+        <?php if (!empty($updates)): ?>
+            <?php foreach ($updates as $update): ?>
+                <div class="comment-item">
+                    <div class="comment-header">
+                        <strong>
+                            <?php if ($update['user_email'] == $task['assigned_by_email'] ?? false): ?>
+                                <i class="fa-solid fa-user-tie"></i> <?= htmlspecialchars($update['user_email']) ?> (Assigner)
+                            <?php elseif ($update['user_email'] == $task['assigned_to_email'] ?? false): ?>
+                                <i class="fa-solid fa-user"></i> <?= htmlspecialchars($update['user_email']) ?> (Assignee)
+                            <?php else: ?>
+                                <i class="fa-solid fa-user"></i> <?= htmlspecialchars($update['user_email'] ?? 'Unknown') ?>
+                            <?php endif; ?>
+                        </strong>
+                        <span class="comment-date">
+                            <?= date('M j, Y H:i', strtotime($update['created_at'])) ?>
+                        </span>
+                    </div>
+
+                    <?php if (!empty($update['comment'])): ?>
+                        <div class="comment-body">
+                            <?= nl2br(htmlspecialchars($update['comment'])) ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php
+                    $attachments = !empty($update['report_filename'])
+                        ? json_decode($update['report_filename'], true)
+                        : [];
+                    ?>
+                    <?php if (!empty($attachments)): ?>
+                        <div class="comment-attachments">
+                            <strong><i class="fa-solid fa-paperclip"></i> Attachments:</strong>
+                            <?php foreach ($attachments as $f): ?>
+                                <a href="download.php?file=<?= urlencode($f) ?>&mode=preview" target="_blank">
+                                    <?= htmlspecialchars($f) ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
         <?php endif; ?>
     </div>
 <?php endif; ?>
+
 
 <!-- TOAST -->
 <?php if (isset($_SESSION['flash'])):
@@ -339,7 +376,7 @@ function getCurrentStaffId(): int
     document.getElementById('close-toast')?.addEventListener('click', () => window.location.href = 'index.php');
     setTimeout(() => {
         if (document.getElementById('toast')) window.location.href = 'index.php';
-    }, 4000);
+    }, 1000);
 </script>
 
 <?php require_once 'footer.php'; ?>

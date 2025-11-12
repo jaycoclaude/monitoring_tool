@@ -1,10 +1,11 @@
 <?php
 require_once 'data.php';
+require_once '../includes/auth.php'; 
 $staff_email = $_SESSION['user_email'];
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -27,9 +28,12 @@ $staff_email = $_SESSION['user_email'];
       </div>
       <div class="header-actions">
 
-        <a href="report.php" class="btn btn-primary">
-          <i class="fas fa-file-pdf"></i> Reports
-        </a>
+        <?php if (can('view_reports')): ?>
+          <a href="report.php" class="btn btn-primary">
+            <i class="fas fa-file-pdf"></i> Reports
+          </a>
+        <?php endif; ?>
+
         <a href="index.php" class="btn btn-primary">
           <i class="fas fa-dashboard"></i> DashBoard
         </a>
