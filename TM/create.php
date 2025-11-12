@@ -3,7 +3,8 @@ require_once '../includes/auth.php';
 require_once 'data.php';
 $current_staff = $_SESSION['user_id'];
 
-$staff_list = getAllStaff();
+$staff_list        = getAllStaff();
+$staff_task_counts = getStaffOpenTaskCounts();   // ← counts open tasks per staff
 
 // === HANDLE FORM SUBMISSION ===
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -54,6 +55,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/styles.css">
 
+<style>
+/* Task count badge – blue bubble */
+.task-badge {
+    background:#007aff;
+    color:#fff;
+    font-size:0.65rem;
+    padding:2px 6px;
+    border-radius:12px;
+    min-width:18px;
+    text-align:center;
+    line-height:1;
+    display:inline-block;
+}
+</style>
 
 <div class="page-header">
     <h1 class="page-title"><i class="fa-solid fa-clipboard-list"></i> Create Assignment</h1>
@@ -63,17 +78,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="form-container">
 
     <!-- TOAST MESSAGE -->
-    <?php if (isset($_SESSION['flash'])): 
+    <?php if (isset($_SESSION['flash'])):
         $flash = $_SESSION['flash'];
         unset($_SESSION['flash']);
     ?>
-    <div class="toast toast-<?= $flash['type'] ?>" id="toast">
-        <i class="fas <?= $flash['type'] === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle' ?>"></i>
-        <span><?= htmlspecialchars($flash['msg']) ?></span>
-        <button type="button" class="toast-close" id="close-toast">
-            <i class="fas fa-times"></i>
-        </button>
-    </div>
+        <div class="toast toast-<?= $flash['type'] ?>" id="toast">
+            <i class="fas <?= $flash['type'] === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle' ?>"></i>
+            <span><?= htmlspecialchars($flash['msg']) ?></span>
+            <button type="button" class="toast-close" id="close-toast">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
     <?php endif; ?>
 
     <form method="POST" enctype="multipart/form-data" class="form-grid">
@@ -86,8 +101,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label><i class="fa-solid fa-user-check"></i> Assign To *</label>
             <select name="assignee" class="select2" required>
                 <option value="">Select staff...</option>
-                <?php foreach ($staff_list as $s): ?>
-                    <option value="<?= $s['staff_id'] ?>"><?= htmlspecialchars($s['staff_names']) ?></option>
+                <?php foreach ($staff_list as $s):
+                    $cnt = $staff_task_counts[$s['staff_id']] ?? 0;
+                ?>
+                    <option value="<?= $s['staff_id'] ?>" data-tasks="<?= $cnt ?>">
+                        <?= htmlspecialchars($s['staff_names']) ?>
+                    </option>
                 <?php endforeach; ?>
             </select>
         </div>
@@ -132,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $(document).ready(function() {
     // === SELECT2 WITH ICONS & SEARCH CONTROL ===
     $('.select2').each(function() {
-        const $select = $(this);
+        const $select   = $(this);
         const isAssignee = $select.attr('name') === 'assignee';
 
         $select.select2({
@@ -141,22 +160,41 @@ $(document).ready(function() {
             allowClear: true,
             minimumResultsForSearch: isAssignee ? 1 : Infinity,
             dropdownParent: $('body'),
+
+            // ---- ICON + BADGE IN DROPDOWN ----
             templateResult: function(state) {
                 if (!state.id) return state.text;
-                let icon = isAssignee ? 'fa-user' :
-                           state.id === 'low' ? 'fa-arrow-down' :
-                           state.id === 'medium' ? 'fa-equals' :
-                           state.id === 'high' ? 'fa-arrow-up' : 'fa-exclamation-triangle';
+
+                const tasks = state.element?.dataset.tasks || 0;
+                const badge = tasks ? `<span class="task-badge">${tasks}</span>` : '';
+
+                const icon = isAssignee
+                    ? 'fa-user'
+                    : state.id === 'low'   ? 'fa-arrow-down'
+                    : state.id === 'medium'? 'fa-equals'
+                    : state.id === 'high'  ? 'fa-arrow-up'
+                    : 'fa-exclamation-triangle';
+
                 return $(`
-                    <span style="display:flex;align-items:center;gap:12px;">
+                    <span style="display:flex;align-items:center;gap:8px;">
                         <i class="fas ${icon} select2-icon"></i>
                         <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                             ${state.text}
                         </span>
+                        ${badge}
                     </span>
                 `);
             },
-            templateSelection: s => s.id ? s.text : $select.data('placeholder'),
+
+            // ---- SELECTED TEXT (with count) ----
+            templateSelection: function(state) {
+                if (!state.id) return state.text;
+                const tasks = state.element?.dataset.tasks || 0;
+                return tasks
+                    ? `${state.text} <small style="opacity:.6;">(${tasks})</small>`
+                    : state.text;
+            },
+
             escapeMarkup: m => m
         });
     });

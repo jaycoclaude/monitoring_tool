@@ -1,8 +1,7 @@
 <?php
 // data.php
 require_once '../includes/config.php';
-require_once '../includes/auth.php';
-require_once '/../includes/logger.php';
+require_once '../includes/logger.php';
 $current_staff = $_SESSION['user_id'];
 
 if (!$current_staff) {
@@ -543,3 +542,65 @@ function getLatestReview(int $task_id): ?array
     return $row;
 }
 
+/**
+ * Returns an associative array:  staff_id => open_task_count
+ * Only counts tasks that are NOT completed/overdue (you can tweak the list).
+ */
+function getStaffOpenTaskCounts(): array
+{
+    $db = getDB();
+
+    // Adjust the WHERE clause to the statuses you consider “open”
+    $openStatuses = ['pending', 'in_progress', 'review'];
+
+    $placeholders = str_repeat('?,', count($openStatuses) - 1) . '?';
+
+    $sql = "
+        SELECT 
+            s.staff_id,
+            COUNT(t.task_id) AS open_tasks
+        FROM tbl_staff s
+        LEFT JOIN tbl_tasks t 
+               ON t.assigned_to = s.staff_id 
+              AND t.is_deleted = 0 
+              AND t.status IN ($placeholders)
+        WHERE s.staff_status = 1
+        GROUP BY s.staff_id
+    ";
+
+    $stmt = $db->prepare($sql);
+    $stmt->execute($openStatuses);
+    $rows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);   // staff_id => count
+
+    // Ensure every staff has at least 0
+    $all = getAllStaff();
+    $result = [];
+    foreach ($all as $s) {
+        $result[$s['staff_id']] = $rows[$s['staff_id']] ?? 0;
+    }
+    return $result;
+}
+
+/**
+ * Count applications by current_status
+ */
+function getApplicationStatusCounts(): array
+{
+    $pdo = getDB();
+
+    $statuses = [
+        'pending'                  => 'Pending',
+        'under-review'             => 'Under Review',
+        'awaiting-applicant-response' => 'Awaiting Applicant Response',
+        'completed'                => 'Completed'
+    ];
+
+    $counts = [];
+    foreach ($statuses as $key => $label) {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM rdb_osc_applications WHERE current_status = ?");
+        $stmt->execute([$key]);
+        $counts[$key] = (int)$stmt->fetchColumn();
+    }
+
+    return $counts;
+}
