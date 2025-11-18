@@ -39,9 +39,9 @@ try {
         $stmt->execute([$token_hash, $expiry, $user['user_id']]);
 
 
-        // require_once 'PHPMailer/src/PHPMailer.php';
-        // require_once 'PHPMailer/src/SMTP.php';
-        // require_once 'PHPMailer/src/Exception.php';
+        require_once 'PHPMailer/src/PHPMailer.php';
+        require_once 'PHPMailer/src/SMTP.php';
+        require_once 'PHPMailer/src/Exception.php';
 
         $mail = new PHPMailer(true);
 
