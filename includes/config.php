@@ -13,6 +13,7 @@
 ?>
 
 <?php
+date_default_timezone_set('Africa/Kigali');
 // includes/config.php
 define('DB_HOST', '127.0.0.1');
 define('DB_USER', 'root');

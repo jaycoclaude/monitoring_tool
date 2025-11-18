@@ -46,8 +46,8 @@ $stmt = $pdo->query("SELECT COUNT(*) FROM tbl_hm_applications WHERE application_
 $in_review_count = $stmt->fetchColumn();
 /////////////////////Food MA/////////////////////////////////////////
 // 1. Count applications with current_stage_id = 1
-$stmt_fric = $pdo->query("SELECT COUNT(*) FROM tbl_hm_applications_food WHERE application_current_stage = 1");
-$in_pending_count_fric = $stmt_fric->fetchColumn();
+// $stmt_fric = $pdo->query("SELECT COUNT(*) FROM tbl_hm_applications_food WHERE application_current_stage = 1");
+// $in_pending_count_fric = $stmt_fric->fetchColumn();
 
 // 2. Count applications with current_stage_id = 10
 $stmt_fric = $pdo->query("SELECT COUNT(*) FROM tbl_hm_applications_food WHERE application_current_stage = 10");

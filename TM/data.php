@@ -604,3 +604,89 @@ function getApplicationStatusCounts(): array
 
     return $counts;
 }
+
+/**
+ * --------------------------------------------------------------------
+ * UNDER REVIEW CARD – OnTime vs Delayed per service
+ * Uses application_type → timeline.application_type for processing time
+ * Displays the full service_requested as label
+ * --------------------------------------------------------------------
+ */
+function getDivisionOnTimeDelayedByStatus($status) {
+    global $pdo;
+
+    $sql = "
+        SELECT 
+            a.service_requested,
+            a.application_date,
+            COALESCE(t.processing_time, 30) AS processing_time
+        FROM rdb_osc_applications a
+        LEFT JOIN rdb_osc_applications_timelines t 
+               ON a.application_type = t.application_type   -- THIS IS THE CORRECT JOIN
+        WHERE LOWER(a.current_status) = LOWER(:status)
+          AND a.application_date IS NOT NULL
+          AND a.application_type IS NOT NULL
+        ORDER BY a.service_requested
+    ";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':status' => $status]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $result = [];
+    $today  = new DateTime('today');
+
+    foreach ($rows as $r) {
+        $svc = trim($r['service_requested']);
+        if (empty($svc)) continue;
+
+        // Initialize service
+        if (!isset($result[$svc])) {
+            $result[$svc] = ['ontime' => 0, 'delayed' => 0];
+        }
+
+        $appDate  = new DateTime($r['application_date']);
+        $days     = (int)$r['processing_time'];
+        $deadline = clone $appDate;
+        $deadline->modify("+$days days");
+
+        // Compare today with deadline
+        if ($today <= $deadline) {
+            $result[$svc]['ontime']++;
+        } else {
+            $result[$svc]['delayed']++;
+        }
+    }
+
+    ksort($result);
+    return $result;
+}
+
+/**
+ * Get TOTAL applications per service_requested for a given status
+ */
+function getDivisionTotalByStatus($status) {
+    global $pdo;
+
+    $sql = "
+        SELECT 
+            a.service_requested,
+            COUNT(*) AS total
+        FROM rdb_osc_applications a
+        WHERE LOWER(a.current_status) = :status
+          AND a.service_requested IS NOT NULL
+        GROUP BY a.service_requested
+        ORDER BY a.service_requested
+    ";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':status' => strtolower($status)]);
+    $rows = $stmt->fetchAll();
+
+    $result = [];
+    foreach ($rows as $row) {
+        $service = trim($row['service_requested']);
+        $result[$service] = (int)$row['total'];
+    }
+    return $result;
+}

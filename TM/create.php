@@ -58,15 +58,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <style>
 /* Task count badge – blue bubble */
 .task-badge {
-    background:#007aff;
-    color:#fff;
-    font-size:0.65rem;
-    padding:2px 6px;
-    border-radius:12px;
-    min-width:18px;
-    text-align:center;
-    line-height:1;
-    display:inline-block;
+    background: #007aff;
+    color: #fff;
+    font-size: 0.85rem;      /* larger font */
+    padding: 4px 8px;        /* more padding */
+    border-radius: 14px;     /* rounder */
+    min-width: 24px;         /* wider min width */
+    text-align: center;
+    line-height: 1;
+    display: inline-block;
+}
+
+/* Optional: slightly larger icons in select2 */
+.select2-container--default .select2-selection--single .select2-selection__rendered i {
+    margin-right: 6px;
 }
 </style>
 
@@ -149,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 $(document).ready(function() {
-    // === SELECT2 WITH ICONS & SEARCH CONTROL ===
+    // === SELECT2 WITH ICONS & BADGE ===
     $('.select2').each(function() {
         const $select   = $(this);
         const isAssignee = $select.attr('name') === 'assignee';
@@ -186,13 +191,19 @@ $(document).ready(function() {
                 `);
             },
 
-            // ---- SELECTED TEXT (with count) ----
+            // ---- SELECTED TEXT WITH VISIBLE BADGE ----
             templateSelection: function(state) {
                 if (!state.id) return state.text;
                 const tasks = state.element?.dataset.tasks || 0;
-                return tasks
-                    ? `${state.text} <small style="opacity:.6;">(${tasks})</small>`
-                    : state.text;
+                if (tasks) {
+                    return $(`
+                        <span style="display:flex;align-items:center;gap:6px;">
+                            <span>${state.text}</span>
+                            <span class="task-badge">${tasks}</span>
+                        </span>
+                    `);
+                }
+                return state.text;
             },
 
             escapeMarkup: m => m

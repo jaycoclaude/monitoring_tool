@@ -223,7 +223,7 @@ unset($_SESSION['old_email']);
                     </div>
                     
                     <div class="forgot-password">
-                        <a href="#"><i class="fas fa-key me-1"></i>Forgot your passcode?</a>
+                        <a href="forgot_password.php"><i class="fas fa-key me-1"></i>Forgot your passcode?</a>
                     </div>
                 </form>
                 
